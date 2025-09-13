@@ -1,0 +1,65 @@
+name: Weekly Menu Generation
+
+on:
+  schedule:
+    # JST 日曜18:00 = UTC 日曜09:00
+    - cron: "0 9 * * 0"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry-run (no external API calls)"
+        required: false
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Determine run mode
+        id: mode
+        run: |
+          # Check if secrets are dummy/empty or if manual dry_run is requested
+          if [[ "${{ inputs.dry_run }}" == "true" ]] || \
+             [[ -z "${{ secrets.OPENAI_API_KEY }}" ]] || \
+             [[ "${{ secrets.OPENAI_API_KEY }}" == "dummy" ]] || \
+             [[ -z "${{ secrets.NOTION_TOKEN }}" ]] || \
+             [[ "${{ secrets.NOTION_TOKEN }}" == "dummy" ]] || \
+             [[ -z "${{ secrets.NOTION_DB_ID }}" ]] || \
+             [[ "${{ secrets.NOTION_DB_ID }}" == "dummy" ]]; then
+            echo "dry_run=true" >> $GITHUB_OUTPUT
+          else
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run weekly menu generation
+        run: python main.py
+        env:
+          DRY_RUN: ${{ steps.mode.outputs.dry_run }}
+      
+      - name: Upload artifacts (DRY_RUN mode)
+        if: steps.mode.outputs.dry_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-menu-json
+          path: weekly_menu_*.json
+          retention-days: 30

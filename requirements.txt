@@ -1,0 +1,11 @@
+# OpenAI API client
+openai>=1.0.0
+
+# Notion API client
+notion-client>=2.2.1
+
+# JSON handling and data processing
+python-dateutil>=2.8.2
+
+# Type hints support for older Python versions
+typing-extensions>=4.0.0
