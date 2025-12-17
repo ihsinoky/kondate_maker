@@ -91,7 +91,7 @@ function Settings() {
           className="recipe-input"
           value={recipeInput}
           onChange={(e) => setRecipeInput(e.target.value)}
-          placeholder="例：&#10;鯖の味噌煮 | https://example.com/recipe1&#10;https://example.com/recipe2"
+          placeholder={'例：\n鯖の味噌煮 | https://example.com/recipe1\nhttps://example.com/recipe2'}
           rows={8}
         />
 
