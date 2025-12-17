@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { loadSettings, saveSettings, clearSettings, parseRecipeInput, WednesdayRecipe } from '../lib/settings'
 
 function Settings() {
@@ -6,6 +6,16 @@ function Settings() {
   const [currentRecipes, setCurrentRecipes] = useState<WednesdayRecipe[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [saveStatus, setSaveStatus] = useState<string>('')
+  const statusTimeoutRef = useRef<number | null>(null)
+
+  // Clear timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current !== null) {
+        clearTimeout(statusTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Load settings on mount
   useEffect(() => {
@@ -27,6 +37,11 @@ function Settings() {
   }, [])
 
   const handleSave = () => {
+    // Clear any existing timeout
+    if (statusTimeoutRef.current !== null) {
+      clearTimeout(statusTimeoutRef.current)
+    }
+
     setErrors([])
     setSaveStatus('')
 
@@ -46,13 +61,18 @@ function Settings() {
       saveSettings({ wednesdayRecipes: recipes })
       setCurrentRecipes(recipes)
       setSaveStatus('保存しました！')
-      setTimeout(() => setSaveStatus(''), 3000)
+      statusTimeoutRef.current = window.setTimeout(() => setSaveStatus(''), 3000)
     } catch (error) {
       setErrors([error instanceof Error ? error.message : '保存に失敗しました'])
     }
   }
 
   const handleClear = () => {
+    // Clear any existing timeout
+    if (statusTimeoutRef.current !== null) {
+      clearTimeout(statusTimeoutRef.current)
+    }
+
     if (!window.confirm('設定をすべて削除してよろしいですか？')) {
       return
     }
@@ -63,7 +83,7 @@ function Settings() {
       setCurrentRecipes([])
       setErrors([])
       setSaveStatus('設定をクリアしました')
-      setTimeout(() => setSaveStatus(''), 3000)
+      statusTimeoutRef.current = window.setTimeout(() => setSaveStatus(''), 3000)
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'クリアに失敗しました'])
     }
