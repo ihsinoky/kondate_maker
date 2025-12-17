@@ -21,6 +21,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   }
 
   // Fallback for Safari and older browsers
+  // Note: execCommand is deprecated but still necessary for Safari compatibility
   try {
     const textarea = document.createElement('textarea')
     textarea.value = text

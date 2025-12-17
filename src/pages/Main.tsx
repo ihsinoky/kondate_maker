@@ -2,6 +2,19 @@ import { useState } from 'react'
 import { MenuSlot } from '../types/menu'
 import { copyToClipboard } from '../lib/clipboard'
 
+// Placeholder recipe data (will be replaced with actual API calls later)
+const PLACEHOLDER_RECIPES = [
+  { title: 'ハンバーグ', url: 'https://example.com/recipe1', source: 'クックパッド' },
+  { title: '唐揚げ', url: 'https://example.com/recipe2', source: '楽天レシピ' },
+  { title: 'カレー', url: 'https://example.com/recipe3', source: 'クックパッド' },
+  { title: '豚の生姜焼き', url: 'https://example.com/recipe4', source: 'クックパッド' },
+  { title: 'パスタ', url: 'https://example.com/recipe5', source: '楽天レシピ' },
+  { title: 'チャーハン', url: 'https://example.com/recipe6', source: 'クックパッド' },
+  { title: '焼き魚', url: 'https://example.com/recipe7', source: '楽天レシピ' },
+  { title: '肉じゃが', url: 'https://example.com/recipe8', source: 'クックパッド' },
+  { title: 'オムライス', url: 'https://example.com/recipe9', source: 'クックパッド' },
+]
+
 function Main() {
   const [menuSlots, setMenuSlots] = useState<MenuSlot[]>([])
   const [copyStatus, setCopyStatus] = useState<string>('')
@@ -21,20 +34,8 @@ function Main() {
     ]
 
     // Fill with placeholder data
-    const placeholderRecipes = [
-      { title: 'ハンバーグ', url: 'https://example.com/recipe1', source: 'クックパッド' },
-      { title: '唐揚げ', url: 'https://example.com/recipe2', source: '楽天レシピ' },
-      { title: 'カレー', url: 'https://example.com/recipe3', source: 'クックパッド' },
-      { title: '豚の生姜焼き', url: 'https://example.com/recipe4', source: 'クックパッド' },
-      { title: 'パスタ', url: 'https://example.com/recipe5', source: '楽天レシピ' },
-      { title: 'チャーハン', url: 'https://example.com/recipe6', source: 'クックパッド' },
-      { title: '焼き魚', url: 'https://example.com/recipe7', source: '楽天レシピ' },
-      { title: '肉じゃが', url: 'https://example.com/recipe8', source: 'クックパッド' },
-      { title: 'オムライス', url: 'https://example.com/recipe9', source: 'クックパッド' },
-    ]
-
     slots.forEach((slot, index) => {
-      slot.items = [placeholderRecipes[index]]
+      slot.items = [PLACEHOLDER_RECIPES[index]]
     })
 
     setMenuSlots(slots)
