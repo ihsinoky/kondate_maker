@@ -109,8 +109,6 @@ export function loadSettings(): Settings {
     const mergedDefaults = createDefaultSettings()
 
     return {
-      ...mergedDefaults,
-      ...parsed,
       overallPolicy: parsed.overallPolicy ?? mergedDefaults.overallPolicy,
       notionDatabaseId: parsed.notionDatabaseId ?? mergedDefaults.notionDatabaseId,
       notionIntegrationToken: parsed.notionIntegrationToken ?? mergedDefaults.notionIntegrationToken,
