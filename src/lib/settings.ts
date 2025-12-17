@@ -108,11 +108,18 @@ export function loadSettings(): Settings {
 
     const mergedDefaults = createDefaultSettings()
 
+    // ランタイムでの型検証: dayRules と preferredRecipeSites が配列であることを確認。
+    // データ破損や手動編集、バージョン間のスキーマ変更に備えて、配列でない場合はデフォルト値を使用する。
+    const dayRules = Array.isArray(parsed.dayRules) ? parsed.dayRules : mergedDefaults.dayRules
+    const preferredRecipeSites = Array.isArray(parsed.preferredRecipeSites) 
+      ? parsed.preferredRecipeSites 
+      : mergedDefaults.preferredRecipeSites
+
     return {
       ...mergedDefaults,
       ...parsed,
-      dayRules: parsed.dayRules ?? mergedDefaults.dayRules,
-      preferredRecipeSites: parsed.preferredRecipeSites ?? mergedDefaults.preferredRecipeSites,
+      dayRules,
+      preferredRecipeSites,
     }
   } catch (error) {
     console.error('Failed to load settings:', error)
