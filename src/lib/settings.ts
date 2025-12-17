@@ -111,6 +111,9 @@ export function loadSettings(): Settings {
     return {
       ...mergedDefaults,
       ...parsed,
+      overallPolicy: parsed.overallPolicy ?? mergedDefaults.overallPolicy,
+      notionDatabaseId: parsed.notionDatabaseId ?? mergedDefaults.notionDatabaseId,
+      notionIntegrationToken: parsed.notionIntegrationToken ?? mergedDefaults.notionIntegrationToken,
       dayRules: parsed.dayRules ?? mergedDefaults.dayRules,
       preferredRecipeSites: parsed.preferredRecipeSites ?? mergedDefaults.preferredRecipeSites,
     }
