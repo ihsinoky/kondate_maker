@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MenuSlot } from '../types/menu'
 import { copyToClipboard } from '../lib/clipboard'
 
@@ -18,6 +18,16 @@ const PLACEHOLDER_RECIPES = [
 function Main() {
   const [menuSlots, setMenuSlots] = useState<MenuSlot[]>([])
   const [copyStatus, setCopyStatus] = useState<string>('')
+  const statusTimeoutRef = useRef<number | null>(null)
+
+  // Clear timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current !== null) {
+        clearTimeout(statusTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Generate placeholder menu data
   const generateMenu = () => {
@@ -57,8 +67,14 @@ function Main() {
 
   // Copy to clipboard
   const handleCopyToClipboard = async () => {
+    // Clear any existing timeout
+    if (statusTimeoutRef.current !== null) {
+      clearTimeout(statusTimeoutRef.current)
+    }
+
     if (menuSlots.length === 0) {
       setCopyStatus('献立が作成されていません')
+      statusTimeoutRef.current = window.setTimeout(() => setCopyStatus(''), 3000)
       return
     }
 
@@ -72,7 +88,7 @@ function Main() {
     }
 
     // Clear status after 3 seconds
-    setTimeout(() => setCopyStatus(''), 3000)
+    statusTimeoutRef.current = window.setTimeout(() => setCopyStatus(''), 3000)
   }
 
   return (
@@ -93,7 +109,9 @@ function Main() {
       </div>
 
       {copyStatus && (
-        <div className="copy-status">{copyStatus}</div>
+        <div className="copy-status" role="status" aria-live="polite">
+          {copyStatus}
+        </div>
       )}
 
       <div className="menu-grid">
