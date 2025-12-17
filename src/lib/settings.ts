@@ -95,7 +95,7 @@ export function parseRecipeInput(input: string): {
         return
       }
       const [title, url] = parts
-      if (title.trim() === '' || url.trim() === '') {
+      if (title === '' || url === '') {
         errors.push(`${lineNumber}行目: タイトルまたはURLが空です`)
         return
       }
