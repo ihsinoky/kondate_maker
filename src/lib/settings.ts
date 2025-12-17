@@ -117,7 +117,11 @@ export function loadSettings(): Settings {
 
     return {
       ...mergedDefaults,
-      ...parsed,
+      // 検証済みの配列を除外して、その他のプロパティだけをマージ
+      overallPolicy: parsed.overallPolicy ?? mergedDefaults.overallPolicy,
+      notionDatabaseId: parsed.notionDatabaseId ?? mergedDefaults.notionDatabaseId,
+      notionIntegrationToken: parsed.notionIntegrationToken ?? mergedDefaults.notionIntegrationToken,
+      // 検証済みの配列を最後に設定
       dayRules,
       preferredRecipeSites,
     }
