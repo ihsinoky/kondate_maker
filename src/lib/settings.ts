@@ -115,13 +115,21 @@ export function loadSettings(): Settings {
       ? parsed.preferredRecipeSites 
       : mergedDefaults.preferredRecipeSites
 
+    // 文字列フィールドの型検証も行う
+    const overallPolicy = typeof parsed.overallPolicy === 'string' 
+      ? parsed.overallPolicy 
+      : mergedDefaults.overallPolicy
+    const notionDatabaseId = typeof parsed.notionDatabaseId === 'string'
+      ? parsed.notionDatabaseId
+      : mergedDefaults.notionDatabaseId
+    const notionIntegrationToken = typeof parsed.notionIntegrationToken === 'string'
+      ? parsed.notionIntegrationToken
+      : mergedDefaults.notionIntegrationToken
+
     return {
-      ...mergedDefaults,
-      // 検証済みの配列を除外して、その他のプロパティだけをマージ
-      overallPolicy: parsed.overallPolicy ?? mergedDefaults.overallPolicy,
-      notionDatabaseId: parsed.notionDatabaseId ?? mergedDefaults.notionDatabaseId,
-      notionIntegrationToken: parsed.notionIntegrationToken ?? mergedDefaults.notionIntegrationToken,
-      // 検証済みの配列を最後に設定
+      overallPolicy,
+      notionDatabaseId,
+      notionIntegrationToken,
       dayRules,
       preferredRecipeSites,
     }
