@@ -109,10 +109,11 @@ export function loadSettings(): Settings {
     const mergedDefaults = createDefaultSettings()
 
     return {
-      ...mergedDefaults,
-      ...parsed,
       dayRules: parsed.dayRules ?? mergedDefaults.dayRules,
+      overallPolicy: parsed.overallPolicy ?? mergedDefaults.overallPolicy,
       preferredRecipeSites: parsed.preferredRecipeSites ?? mergedDefaults.preferredRecipeSites,
+      notionDatabaseId: parsed.notionDatabaseId ?? mergedDefaults.notionDatabaseId,
+      notionIntegrationToken: parsed.notionIntegrationToken ?? mergedDefaults.notionIntegrationToken,
     }
   } catch (error) {
     console.error('Failed to load settings:', error)
