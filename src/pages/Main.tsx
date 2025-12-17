@@ -1,6 +1,19 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MenuSlot } from '../types/menu'
 import { copyToClipboard } from '../lib/clipboard'
+
+// Default menu slot structure (9 slots: Sat-Fri)
+const DEFAULT_MENU_SLOTS: MenuSlot[] = [
+  { day: '土', mealTime: '昼', items: [] },
+  { day: '土', mealTime: '夜', items: [] },
+  { day: '日', mealTime: '昼', items: [] },
+  { day: '日', mealTime: '夜', items: [] },
+  { day: '月', mealTime: '夜', items: [] },
+  { day: '火', mealTime: '夜', items: [] },
+  { day: '水', mealTime: '夜', items: [] },
+  { day: '木', mealTime: '夜', items: [] },
+  { day: '金', mealTime: '夜', items: [] },
+]
 
 // Placeholder recipe data (will be replaced with actual API calls later)
 const PLACEHOLDER_RECIPES = [
@@ -15,31 +28,33 @@ const PLACEHOLDER_RECIPES = [
   { title: 'オムライス', url: 'https://example.com/recipe9', source: 'クックパッド' },
 ]
 
+type CopyStatusType = '' | 'success' | 'error'
+
 function Main() {
   const [menuSlots, setMenuSlots] = useState<MenuSlot[]>([])
   const [copyStatus, setCopyStatus] = useState<string>('')
+  const [copyStatusType, setCopyStatusType] = useState<CopyStatusType>('')
+  const statusTimeoutRef = useRef<number | null>(null)
+
+  // Clear timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current !== null) {
+        clearTimeout(statusTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Generate placeholder menu data
   const generateMenu = () => {
-    const slots: MenuSlot[] = [
-      { day: '土', mealTime: '昼', items: [] },
-      { day: '土', mealTime: '夜', items: [] },
-      { day: '日', mealTime: '昼', items: [] },
-      { day: '日', mealTime: '夜', items: [] },
-      { day: '月', mealTime: '夜', items: [] },
-      { day: '火', mealTime: '夜', items: [] },
-      { day: '水', mealTime: '夜', items: [] },
-      { day: '木', mealTime: '夜', items: [] },
-      { day: '金', mealTime: '夜', items: [] },
-    ]
-
-    // Fill with placeholder data
-    slots.forEach((slot, index) => {
-      slot.items = [PLACEHOLDER_RECIPES[index]]
-    })
+    const slots: MenuSlot[] = DEFAULT_MENU_SLOTS.map((slot, index) => ({
+      ...slot,
+      items: [PLACEHOLDER_RECIPES[index]],
+    }))
 
     setMenuSlots(slots)
     setCopyStatus('')
+    setCopyStatusType('')
   }
 
   // Format menu for Notion (heading-based format)
@@ -57,8 +72,18 @@ function Main() {
 
   // Copy to clipboard
   const handleCopyToClipboard = async () => {
+    // Clear any existing timeout
+    if (statusTimeoutRef.current !== null) {
+      clearTimeout(statusTimeoutRef.current)
+    }
+
     if (menuSlots.length === 0) {
       setCopyStatus('献立が作成されていません')
+      setCopyStatusType('error')
+      statusTimeoutRef.current = window.setTimeout(() => {
+        setCopyStatus('')
+        setCopyStatusType('')
+      }, 3000)
       return
     }
 
@@ -67,12 +92,17 @@ function Main() {
     
     if (success) {
       setCopyStatus('コピーしました！')
+      setCopyStatusType('success')
     } else {
       setCopyStatus('コピーに失敗しました')
+      setCopyStatusType('error')
     }
 
     // Clear status after 3 seconds
-    setTimeout(() => setCopyStatus(''), 3000)
+    statusTimeoutRef.current = window.setTimeout(() => {
+      setCopyStatus('')
+      setCopyStatusType('')
+    }, 3000)
   }
 
   return (
@@ -93,12 +123,18 @@ function Main() {
       </div>
 
       {copyStatus && (
-        <div className="copy-status">{copyStatus}</div>
+        <div 
+          className={`copy-status copy-status--${copyStatusType}`}
+          role="status"
+          aria-live="polite"
+        >
+          {copyStatus}
+        </div>
       )}
 
       <div className="menu-grid">
-        {menuSlots.map((slot, index) => (
-          <div key={index} className="menu-card">
+        {menuSlots.map((slot) => (
+          <div key={`${slot.day}-${slot.mealTime}`} className="menu-card">
             <div className="menu-card-header">
               {slot.day}（{slot.mealTime}）
             </div>
