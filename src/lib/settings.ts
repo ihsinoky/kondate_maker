@@ -127,6 +127,7 @@ export function loadSettings(): Settings {
       : mergedDefaults.notionIntegrationToken
 
     return {
+      ...mergedDefaults,
       overallPolicy,
       notionDatabaseId,
       notionIntegrationToken,
