@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { MenuSlot } from '../types/menu'
 import { copyToClipboard } from '../lib/clipboard'
+import { loadSettings } from '../lib/settings'
 
 // Placeholder recipe data (will be replaced with actual API calls later)
 const PLACEHOLDER_RECIPES = [
@@ -43,9 +44,26 @@ function Main() {
       { day: '金', mealTime: '夜', items: [] },
     ]
 
+    // Load settings to get Wednesday recipes
+    const settings = loadSettings()
+    const wednesdayRecipes = settings?.wednesdayRecipes || []
+
     // Fill with placeholder data
     slots.forEach((slot, index) => {
-      slot.items = [PLACEHOLDER_RECIPES[index]]
+      // Special handling for Wednesday night (水曜夜)
+      if (slot.day === '水' && slot.mealTime === '夜' && wednesdayRecipes.length > 0) {
+        // Randomly select one recipe from Wednesday candidates
+        const randomIndex = Math.floor(Math.random() * wednesdayRecipes.length)
+        const selectedRecipe = wednesdayRecipes[randomIndex]
+        slot.items = [{
+          title: selectedRecipe.title,
+          url: selectedRecipe.url,
+          source: undefined // Wednesday recipes don't have a source field
+        }]
+      } else {
+        // Use placeholder recipes for other slots
+        slot.items = [PLACEHOLDER_RECIPES[index]]
+      }
     })
 
     setMenuSlots(slots)
