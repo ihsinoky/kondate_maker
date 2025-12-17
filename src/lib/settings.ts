@@ -57,6 +57,17 @@ export const DEFAULT_SETTINGS: Settings = {
   notionIntegrationToken: '',
 }
 
+// DEFAULT_SETTINGS は再利用目的の定数なので、そのまま返却すると
+// 呼び出し側の変更が定数本体に伝搬してしまう。ここでは浅いコピーを
+// 行い、常に「新しいインスタンス」を返すことで意図せぬ共有を防ぐ。
+function createDefaultSettings(): Settings {
+  return {
+    ...DEFAULT_SETTINGS,
+    dayRules: DEFAULT_SETTINGS.dayRules.map((rule) => ({ ...rule })),
+    preferredRecipeSites: [...DEFAULT_SETTINGS.preferredRecipeSites],
+  }
+}
+
 // ブラウザで localStorage が安全に利用できるかを確認します。
 // - SSR やテスト環境では window/localStorage が未定義の場合があるため、その場で false を返します。
 // - setItem/removeItem を試すことで、プライベートブラウズなどの制限も検知します。
@@ -84,26 +95,28 @@ function isLocalStorageAvailable(): boolean {
 // 4. 途中で例外が起きた場合は安全のためデフォルトを返す。
 export function loadSettings(): Settings {
   if (!isLocalStorageAvailable()) {
-    return DEFAULT_SETTINGS
+    return createDefaultSettings()
   }
 
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      return DEFAULT_SETTINGS
+      return createDefaultSettings()
     }
 
     const parsed = JSON.parse(raw) as Partial<Settings>
 
+    const mergedDefaults = createDefaultSettings()
+
     return {
-      ...DEFAULT_SETTINGS,
+      ...mergedDefaults,
       ...parsed,
-      dayRules: parsed.dayRules ?? DEFAULT_SETTINGS.dayRules,
-      preferredRecipeSites: parsed.preferredRecipeSites ?? DEFAULT_SETTINGS.preferredRecipeSites,
+      dayRules: parsed.dayRules ?? mergedDefaults.dayRules,
+      preferredRecipeSites: parsed.preferredRecipeSites ?? mergedDefaults.preferredRecipeSites,
     }
   } catch (error) {
     console.error('Failed to load settings:', error)
-    return DEFAULT_SETTINGS
+    return createDefaultSettings()
   }
 }
 
