@@ -126,6 +126,8 @@ export function loadSettings(): Settings {
       ? parsed.notionIntegrationToken
       : mergedDefaults.notionIntegrationToken
 
+    // デフォルト値をベースにして、検証済みの値で上書きする。
+    // スプレッド演算子を使うことで、将来的に Settings に新しいフィールドが追加された場合でも対応できる。
     return {
       ...mergedDefaults,
       overallPolicy,
