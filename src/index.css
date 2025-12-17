@@ -123,32 +123,10 @@ p {
 .copy-status {
   padding: 0.75rem;
   margin-bottom: 1rem;
+  background-color: #4caf50;
   color: white;
   border-radius: 4px;
   text-align: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-}
-
-.copy-status--success {
-  background-color: #4caf50;
-}
-
-.copy-status--success::before {
-  content: "✔";
-  font-weight: bold;
-}
-
-.copy-status--error {
-  background-color: #f44336;
-}
-
-.copy-status--error::before {
-  content: "⚠";
-  font-weight: bold;
 }
 
 /* Menu grid */
