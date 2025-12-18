@@ -6,18 +6,37 @@
 const STORAGE_KEY = 'kondate.settings.v1'
 
 /**
- * Represents a single Wednesday recipe candidate
+ * Default settings structure
  */
-export interface WednesdayRecipe {
+export const DEFAULT_SETTINGS: Settings = {
+  wednesdayRecipes: [],
+  fridaySoupRecipes: []
+}
+
+/**
+ * Base recipe structure used for all recipe configurations
+ */
+export interface RecipeConfig {
   title: string
   url: string
 }
+
+/**
+ * Represents a single Wednesday recipe candidate
+ */
+export interface WednesdayRecipe extends RecipeConfig {}
+
+/**
+ * Represents a single Friday soup recipe candidate
+ */
+export interface FridaySoupRecipe extends RecipeConfig {}
 
 /**
  * Application settings structure
  */
 export interface Settings {
   wednesdayRecipes: WednesdayRecipe[]
+  fridaySoupRecipes: FridaySoupRecipe[]
 }
 
 /**
@@ -36,6 +55,13 @@ export function loadSettings(): Settings | null {
       return null
     }
     if (!Array.isArray(parsed.wednesdayRecipes)) {
+      return null
+    }
+    // Ensure fridaySoupRecipes exists (for backward compatibility)
+    if (!parsed.fridaySoupRecipes) {
+      parsed.fridaySoupRecipes = []
+    }
+    if (!Array.isArray(parsed.fridaySoupRecipes)) {
       return null
     }
     return parsed as Settings
@@ -72,16 +98,16 @@ export function clearSettings(): void {
 }
 
 /**
- * Parse recipe input text into WednesdayRecipe array
+ * Parse recipe input text into RecipeConfig array
  * @param input Multi-line text input
  * @returns Object with recipes array and errors array
  */
 export function parseRecipeInput(input: string): {
-  recipes: WednesdayRecipe[]
+  recipes: RecipeConfig[]
   errors: string[]
 } {
   const lines = input.split('\n').map(line => line.trim()).filter(line => line.length > 0)
-  const recipes: WednesdayRecipe[] = []
+  const recipes: RecipeConfig[] = []
   const errors: string[] = []
 
   lines.forEach((line, index) => {

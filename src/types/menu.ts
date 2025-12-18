@@ -28,4 +28,6 @@ export interface MenuSlot {
   day: DayOfWeek
   mealTime: MealTime
   items: MenuItem[]
+  warning?: string // Optional warning message (e.g., "要確認（スープ候補不足）")
+  isSoup?: boolean // Indicates if this is a soup-based dish
 }

@@ -150,10 +150,33 @@ p {
   padding: 0.75rem 1rem;
   font-weight: 600;
   font-size: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.soup-badge {
+  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 .menu-card-body {
   padding: 1rem;
+}
+
+.menu-warning {
+  background-color: #ff9800;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
 .menu-item {
