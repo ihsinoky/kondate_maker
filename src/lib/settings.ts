@@ -14,10 +14,19 @@ export interface WednesdayRecipe {
 }
 
 /**
+ * Represents a single Friday soup recipe candidate
+ */
+export interface FridaySoupRecipe {
+  title: string
+  url: string
+}
+
+/**
  * Application settings structure
  */
 export interface Settings {
   wednesdayRecipes: WednesdayRecipe[]
+  fridaySoupRecipes: FridaySoupRecipe[]
 }
 
 /**
@@ -36,6 +45,13 @@ export function loadSettings(): Settings | null {
       return null
     }
     if (!Array.isArray(parsed.wednesdayRecipes)) {
+      return null
+    }
+    // Ensure fridaySoupRecipes exists (for backward compatibility)
+    if (!parsed.fridaySoupRecipes) {
+      parsed.fridaySoupRecipes = []
+    }
+    if (!Array.isArray(parsed.fridaySoupRecipes)) {
       return null
     }
     return parsed as Settings
