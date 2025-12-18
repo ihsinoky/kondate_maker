@@ -6,20 +6,22 @@
 const STORAGE_KEY = 'kondate.settings.v1'
 
 /**
- * Represents a single Wednesday recipe candidate
+ * Base recipe structure used for all recipe configurations
  */
-export interface WednesdayRecipe {
+export interface RecipeConfig {
   title: string
   url: string
 }
 
 /**
+ * Represents a single Wednesday recipe candidate
+ */
+export interface WednesdayRecipe extends RecipeConfig {}
+
+/**
  * Represents a single Friday soup recipe candidate
  */
-export interface FridaySoupRecipe {
-  title: string
-  url: string
-}
+export interface FridaySoupRecipe extends RecipeConfig {}
 
 /**
  * Application settings structure
@@ -88,12 +90,12 @@ export function clearSettings(): void {
 }
 
 /**
- * Parse recipe input text into WednesdayRecipe array
+ * Parse recipe input text into RecipeConfig array
  * @param input Multi-line text input
  * @returns Object with recipes array and errors array
  */
 export function parseRecipeInput(input: string): {
-  recipes: WednesdayRecipe[]
+  recipes: RecipeConfig[]
   errors: string[]
 } {
   const lines = input.split('\n').map(line => line.trim()).filter(line => line.length > 0)
@@ -119,14 +121,14 @@ export function parseRecipeInput(input: string): {
         errors.push(`${lineNumber}行目: URLの形式が正しくありません`)
         return
       }
-      recipes.push({ title, url })
+      recipes.push({ title, url } as RecipeConfig)
     } else {
       // URL only format
       if (!isValidUrl(line)) {
         errors.push(`${lineNumber}行目: URLの形式が正しくありません`)
         return
       }
-      recipes.push({ title: line, url: line })
+      recipes.push({ title: line, url: line } as RecipeConfig)
     }
   })
 

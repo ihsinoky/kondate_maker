@@ -94,9 +94,12 @@ function Main() {
           if (nonSoupIndex < nonSoupRecipes.length) {
             slot.items = [nonSoupRecipes[nonSoupIndex]]
             nonSoupIndex++
-          } else {
-            // Fallback to any recipe
+          } else if (allRecipes.length > 0) {
+            // Fallback to any recipe if available
             slot.items = [allRecipes[0]]
+          } else {
+            // If no recipes at all, create a placeholder
+            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
           }
           slot.warning = '要確認（スープ候補不足）'
           slot.isSoup = false
@@ -107,9 +110,12 @@ function Main() {
         if (nonSoupIndex < nonSoupRecipes.length) {
           slot.items = [nonSoupRecipes[nonSoupIndex]]
           nonSoupIndex++
-        } else {
+        } else if (allRecipes.length > 0) {
           // Fallback if we run out of non-soup recipes
           slot.items = [allRecipes[Math.floor(Math.random() * allRecipes.length)]]
+        } else {
+          // If no recipes at all, create a placeholder
+          slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
         }
       }
     })
