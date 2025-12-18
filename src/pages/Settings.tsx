@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { loadSettings, saveSettings, clearSettings, parseRecipeInput, WednesdayRecipe, FridaySoupRecipe } from '../lib/settings'
+import { loadSettings, saveSettings, clearSettings, parseRecipeInput, WednesdayRecipe, FridaySoupRecipe, DEFAULT_SETTINGS } from '../lib/settings'
+import type { Settings as SettingsType } from '../lib/settings'
+
+// Helper function to get settings with defaults
+const getSettingsOrDefault = (): SettingsType => {
+  return loadSettings() || DEFAULT_SETTINGS
+}
 
 function Settings() {
   const [recipeInput, setRecipeInput] = useState('')
@@ -82,7 +88,7 @@ function Settings() {
     }
 
     try {
-      const settings = loadSettings() || { wednesdayRecipes: [], fridaySoupRecipes: [] }
+      const settings = getSettingsOrDefault()
       saveSettings({ ...settings, wednesdayRecipes: recipes })
       setCurrentRecipes(recipes)
       setSaveStatus('保存しました！')
@@ -114,7 +120,7 @@ function Settings() {
     }
 
     try {
-      const settings = loadSettings() || { wednesdayRecipes: [], fridaySoupRecipes: [] }
+      const settings = getSettingsOrDefault()
       saveSettings({ ...settings, fridaySoupRecipes: recipes })
       setCurrentFridaySoupRecipes(recipes)
       setFridaySoupSaveStatus('保存しました！')

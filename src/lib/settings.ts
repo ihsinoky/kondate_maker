@@ -6,6 +6,14 @@
 const STORAGE_KEY = 'kondate.settings.v1'
 
 /**
+ * Default settings structure
+ */
+export const DEFAULT_SETTINGS: Settings = {
+  wednesdayRecipes: [],
+  fridaySoupRecipes: []
+}
+
+/**
  * Base recipe structure used for all recipe configurations
  */
 export interface RecipeConfig {
@@ -99,7 +107,7 @@ export function parseRecipeInput(input: string): {
   errors: string[]
 } {
   const lines = input.split('\n').map(line => line.trim()).filter(line => line.length > 0)
-  const recipes: WednesdayRecipe[] = []
+  const recipes: RecipeConfig[] = []
   const errors: string[] = []
 
   lines.forEach((line, index) => {
