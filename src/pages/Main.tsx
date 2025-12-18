@@ -57,8 +57,7 @@ function Main() {
         const selectedRecipe = wednesdayRecipes[randomIndex]
         slot.items = [{
           title: selectedRecipe.title,
-          url: selectedRecipe.url,
-          source: selectedRecipe.source,
+          url: selectedRecipe.url
         }]
       } else {
         // Use placeholder recipes for other slots
