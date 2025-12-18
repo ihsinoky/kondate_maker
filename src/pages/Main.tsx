@@ -20,6 +20,51 @@ const PLACEHOLDER_RECIPES = [
   { title: 'クリームシチュー', url: 'https://example.com/recipe12', source: 'クックパッド' },
 ]
 
+/**
+ * Helper function to get a fallback recipe when no specific recipes are available
+ * @param nonSoupRecipes Array of non-soup recipes
+ * @param allRecipes Array of all recipes
+ * @param currentIndex Current index in non-soup recipes
+ * @param useRandom If true, use random selection from all recipes; if false, use first recipe
+ * @returns Object with the selected recipe and the next index
+ */
+type FallbackRecipeResult = {
+  recipe: { title: string; url: string; source?: string }
+  nextIndex: number
+}
+
+function getFallbackRecipe(
+  nonSoupRecipes: typeof PLACEHOLDER_RECIPES,
+  allRecipes: typeof PLACEHOLDER_RECIPES,
+  currentIndex: number,
+  useRandom: boolean = false
+): FallbackRecipeResult {
+  // First, try to use non-soup recipes sequentially
+  if (currentIndex < nonSoupRecipes.length) {
+    return {
+      recipe: nonSoupRecipes[currentIndex],
+      nextIndex: currentIndex + 1
+    }
+  }
+  
+  // If we run out of non-soup recipes, fallback to all recipes
+  if (allRecipes.length > 0) {
+    const selectedRecipe = useRandom 
+      ? allRecipes[Math.floor(Math.random() * allRecipes.length)]
+      : allRecipes[0]
+    return {
+      recipe: selectedRecipe,
+      nextIndex: currentIndex
+    }
+  }
+  
+  // If no recipes at all, create a placeholder
+  return {
+    recipe: { title: 'レシピなし', url: 'https://example.com' },
+    nextIndex: currentIndex
+  }
+}
+
 function Main() {
   const [menuSlots, setMenuSlots] = useState<MenuSlot[]>([])
   const [copyStatus, setCopyStatus] = useState<string>('')
@@ -91,32 +136,18 @@ function Main() {
         } 
         // If no soup candidates available, use non-soup recipe with warning
         else {
-          if (nonSoupIndex < nonSoupRecipes.length) {
-            slot.items = [nonSoupRecipes[nonSoupIndex]]
-            nonSoupIndex++
-          } else if (allRecipes.length > 0) {
-            // Fallback to any recipe if available
-            slot.items = [allRecipes[0]]
-          } else {
-            // If no recipes at all, create a placeholder
-            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
-          }
+          const fallback = getFallbackRecipe(nonSoupRecipes, allRecipes, nonSoupIndex, false)
+          slot.items = [fallback.recipe]
+          nonSoupIndex = fallback.nextIndex
           slot.warning = '要確認（スープ候補不足）'
           slot.isSoup = false
         }
       } 
       // Use non-soup recipes for other slots
       else {
-        if (nonSoupIndex < nonSoupRecipes.length) {
-          slot.items = [nonSoupRecipes[nonSoupIndex]]
-          nonSoupIndex++
-        } else if (allRecipes.length > 0) {
-          // Fallback if we run out of non-soup recipes
-          slot.items = [allRecipes[Math.floor(Math.random() * allRecipes.length)]]
-        } else {
-          // If no recipes at all, create a placeholder
-          slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
-        }
+        const fallback = getFallbackRecipe(nonSoupRecipes, allRecipes, nonSoupIndex, true)
+        slot.items = [fallback.recipe]
+        nonSoupIndex = fallback.nextIndex
       }
     })
 

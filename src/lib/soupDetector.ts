@@ -23,6 +23,11 @@ export const SOUP_KEYWORDS = [
 ] as const
 
 /**
+ * Pre-computed lowercase versions of soup keywords for performance
+ */
+const SOUP_KEYWORDS_LOWER = SOUP_KEYWORDS.map(keyword => keyword.toLowerCase())
+
+/**
  * Check if a recipe title indicates a soup-based dish
  * @param title Recipe title to check
  * @returns true if the title contains soup keywords
@@ -33,7 +38,7 @@ export function isSoupRecipe(title: string): boolean {
   }
   
   const normalizedTitle = title.toLowerCase()
-  return SOUP_KEYWORDS.some(keyword => 
-    normalizedTitle.includes(keyword.toLowerCase())
+  return SOUP_KEYWORDS_LOWER.some(keyword => 
+    normalizedTitle.includes(keyword)
   )
 }

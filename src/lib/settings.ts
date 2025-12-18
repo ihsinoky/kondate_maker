@@ -129,14 +129,14 @@ export function parseRecipeInput(input: string): {
         errors.push(`${lineNumber}行目: URLの形式が正しくありません`)
         return
       }
-      recipes.push({ title, url } as RecipeConfig)
+      recipes.push({ title, url })
     } else {
       // URL only format
       if (!isValidUrl(line)) {
         errors.push(`${lineNumber}行目: URLの形式が正しくありません`)
         return
       }
-      recipes.push({ title: line, url: line } as RecipeConfig)
+      recipes.push({ title: line, url: line })
     }
   })
 

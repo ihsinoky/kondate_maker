@@ -1,10 +1,89 @@
 import { useState, useEffect, useRef } from 'react'
 import { loadSettings, saveSettings, clearSettings, parseRecipeInput, WednesdayRecipe, FridaySoupRecipe, DEFAULT_SETTINGS } from '../lib/settings'
 import type { Settings as SettingsType } from '../lib/settings'
+import { isSoupRecipe } from '../lib/soupDetector'
 
 // Helper function to get settings with defaults
 const getSettingsOrDefault = (): SettingsType => {
   return loadSettings() || DEFAULT_SETTINGS
+}
+
+// Helper function to convert recipes to input text format
+const recipesToInputText = (recipes: { title: string; url: string }[]): string => {
+  return recipes
+    .map(recipe => {
+      if (recipe.title === recipe.url) {
+        return recipe.url
+      } else {
+        return `${recipe.title} | ${recipe.url}`
+      }
+    })
+    .join('\n')
+}
+
+// Helper function to handle recipe save logic
+type SaveRecipeParams = {
+  input: string
+  setErrors: (errors: string[]) => void
+  setStatus: (status: string) => void
+  statusTimeoutRef: React.MutableRefObject<number | null>
+  recipeKey: 'wednesdayRecipes' | 'fridaySoupRecipes'
+  onSuccess: (recipes: { title: string; url: string }[]) => void
+  requireAtLeastOne?: boolean
+  validateSoupKeywords?: boolean
+}
+
+const handleRecipeSave = ({
+  input,
+  setErrors,
+  setStatus,
+  statusTimeoutRef,
+  recipeKey,
+  onSuccess,
+  requireAtLeastOne = true,
+  validateSoupKeywords = false,
+}: SaveRecipeParams): void => {
+  // Clear any existing timeout
+  if (statusTimeoutRef.current !== null) {
+    clearTimeout(statusTimeoutRef.current)
+  }
+
+  setErrors([])
+  setStatus('')
+
+  const { recipes, errors: parseErrors } = parseRecipeInput(input)
+
+  if (parseErrors.length > 0) {
+    setErrors(parseErrors)
+    return
+  }
+
+  if (requireAtLeastOne && recipes.length === 0) {
+    setErrors(['少なくとも1件のレシピを入力してください'])
+    return
+  }
+
+  // Validate soup keywords for Friday soup recipes
+  if (validateSoupKeywords && recipes.length > 0) {
+    const nonSoupRecipes = recipes.filter(recipe => !isSoupRecipe(recipe.title))
+    if (nonSoupRecipes.length === recipes.length) {
+      setErrors([
+        '警告: 入力されたレシピにスープ系のキーワードが含まれていません。',
+        'スープ、シチュー、ポタージュ、豚汁、味噌汁、鍋などのキーワードを含むレシピを推奨します。'
+      ])
+      // Allow saving but show warning
+    }
+  }
+
+  try {
+    const settings = getSettingsOrDefault()
+    saveSettings({ ...settings, [recipeKey]: recipes })
+    onSuccess(recipes)
+    setStatus('保存しました！')
+    statusTimeoutRef.current = window.setTimeout(() => setStatus(''), 3000)
+  } catch (error) {
+    setErrors([error instanceof Error ? error.message : '保存に失敗しました'])
+  }
 }
 
 function Settings() {
@@ -21,12 +100,14 @@ function Settings() {
 
   // Clear timeout on unmount to prevent memory leaks
   useEffect(() => {
+    const statusTimeout = statusTimeoutRef
+    const fridaySoupStatusTimeout = fridaySoupStatusTimeoutRef
     return () => {
-      if (statusTimeoutRef.current !== null) {
-        clearTimeout(statusTimeoutRef.current)
+      if (statusTimeout.current !== null) {
+        clearTimeout(statusTimeout.current)
       }
-      if (fridaySoupStatusTimeoutRef.current !== null) {
-        clearTimeout(fridaySoupStatusTimeoutRef.current)
+      if (fridaySoupStatusTimeout.current !== null) {
+        clearTimeout(fridaySoupStatusTimeout.current)
       }
     }
   }, [])
@@ -37,97 +118,38 @@ function Settings() {
     if (settings) {
       if (settings.wednesdayRecipes.length > 0) {
         setCurrentRecipes(settings.wednesdayRecipes)
-        // Convert recipes back to input format for display
-        const inputText = settings.wednesdayRecipes
-          .map(recipe => {
-            if (recipe.title === recipe.url) {
-              return recipe.url
-            } else {
-              return `${recipe.title} | ${recipe.url}`
-            }
-          })
-          .join('\n')
-        setRecipeInput(inputText)
+        setRecipeInput(recipesToInputText(settings.wednesdayRecipes))
       }
       if (settings.fridaySoupRecipes && settings.fridaySoupRecipes.length > 0) {
         setCurrentFridaySoupRecipes(settings.fridaySoupRecipes)
-        // Convert recipes back to input format for display
-        const fridayInputText = settings.fridaySoupRecipes
-          .map(recipe => {
-            if (recipe.title === recipe.url) {
-              return recipe.url
-            } else {
-              return `${recipe.title} | ${recipe.url}`
-            }
-          })
-          .join('\n')
-        setFridaySoupInput(fridayInputText)
+        setFridaySoupInput(recipesToInputText(settings.fridaySoupRecipes))
       }
     }
   }, [])
 
   const handleSave = () => {
-    // Clear any existing timeout
-    if (statusTimeoutRef.current !== null) {
-      clearTimeout(statusTimeoutRef.current)
-    }
-
-    setErrors([])
-    setSaveStatus('')
-
-    const { recipes, errors: parseErrors } = parseRecipeInput(recipeInput)
-
-    if (parseErrors.length > 0) {
-      setErrors(parseErrors)
-      return
-    }
-
-    if (recipes.length === 0) {
-      setErrors(['少なくとも1件のレシピを入力してください'])
-      return
-    }
-
-    try {
-      const settings = getSettingsOrDefault()
-      saveSettings({ ...settings, wednesdayRecipes: recipes })
-      setCurrentRecipes(recipes)
-      setSaveStatus('保存しました！')
-      statusTimeoutRef.current = window.setTimeout(() => setSaveStatus(''), 3000)
-    } catch (error) {
-      setErrors([error instanceof Error ? error.message : '保存に失敗しました'])
-    }
+    handleRecipeSave({
+      input: recipeInput,
+      setErrors,
+      setStatus: setSaveStatus,
+      statusTimeoutRef,
+      recipeKey: 'wednesdayRecipes',
+      onSuccess: setCurrentRecipes,
+      requireAtLeastOne: true,
+    })
   }
 
   const handleFridaySoupSave = () => {
-    // Clear any existing timeout
-    if (fridaySoupStatusTimeoutRef.current !== null) {
-      clearTimeout(fridaySoupStatusTimeoutRef.current)
-    }
-
-    setFridaySoupErrors([])
-    setFridaySoupSaveStatus('')
-
-    const { recipes, errors: parseErrors } = parseRecipeInput(fridaySoupInput)
-
-    if (parseErrors.length > 0) {
-      setFridaySoupErrors(parseErrors)
-      return
-    }
-
-    if (recipes.length === 0) {
-      setFridaySoupErrors(['少なくとも1件のレシピを入力してください'])
-      return
-    }
-
-    try {
-      const settings = getSettingsOrDefault()
-      saveSettings({ ...settings, fridaySoupRecipes: recipes })
-      setCurrentFridaySoupRecipes(recipes)
-      setFridaySoupSaveStatus('保存しました！')
-      fridaySoupStatusTimeoutRef.current = window.setTimeout(() => setFridaySoupSaveStatus(''), 3000)
-    } catch (error) {
-      setFridaySoupErrors([error instanceof Error ? error.message : '保存に失敗しました'])
-    }
+    handleRecipeSave({
+      input: fridaySoupInput,
+      setErrors: setFridaySoupErrors,
+      setStatus: setFridaySoupSaveStatus,
+      statusTimeoutRef: fridaySoupStatusTimeoutRef,
+      recipeKey: 'fridaySoupRecipes',
+      onSuccess: setCurrentFridaySoupRecipes,
+      requireAtLeastOne: false, // Allow empty for Friday soup (optional)
+      validateSoupKeywords: true, // Validate soup keywords
+    })
   }
 
   const handleClear = () => {
