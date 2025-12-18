@@ -24,8 +24,11 @@ export const SOUP_KEYWORDS = [
 
 /**
  * Pre-computed lowercase versions of soup keywords for performance
+ * Frozen to prevent accidental mutations
  */
-const SOUP_KEYWORDS_LOWER = SOUP_KEYWORDS.map(keyword => keyword.toLowerCase())
+const SOUP_KEYWORDS_LOWER = Object.freeze(
+  SOUP_KEYWORDS.map(keyword => keyword.toLowerCase())
+)
 
 /**
  * Check if a recipe title indicates a soup-based dish

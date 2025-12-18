@@ -65,8 +65,8 @@ const handleRecipeSave = ({
 
   // Validate soup keywords for Friday soup recipes
   if (validateSoupKeywords && recipes.length > 0) {
-    const nonSoupRecipes = recipes.filter(recipe => !isSoupRecipe(recipe.title))
-    if (nonSoupRecipes.length === recipes.length) {
+    const hasSoupRecipe = recipes.some(recipe => isSoupRecipe(recipe.title))
+    if (!hasSoupRecipe) {
       setErrors([
         '警告: 入力されたレシピにスープ系のキーワードが含まれていません。',
         'スープ、シチュー、ポタージュ、豚汁、味噌汁、鍋などのキーワードを含むレシピを推奨します。'
@@ -100,14 +100,15 @@ function Settings() {
 
   // Clear timeout on unmount to prevent memory leaks
   useEffect(() => {
-    const statusTimeout = statusTimeoutRef
-    const fridaySoupStatusTimeout = fridaySoupStatusTimeoutRef
+    // Capture the current ref values for cleanup
+    const currentStatusTimeout = statusTimeoutRef.current
+    const currentFridayTimeout = fridaySoupStatusTimeoutRef.current
     return () => {
-      if (statusTimeout.current !== null) {
-        clearTimeout(statusTimeout.current)
+      if (currentStatusTimeout !== null) {
+        clearTimeout(currentStatusTimeout)
       }
-      if (fridaySoupStatusTimeout.current !== null) {
-        clearTimeout(fridaySoupStatusTimeout.current)
+      if (currentFridayTimeout !== null) {
+        clearTimeout(currentFridayTimeout)
       }
     }
   }, [])
