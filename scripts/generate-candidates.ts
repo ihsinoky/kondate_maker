@@ -34,15 +34,9 @@ async function generateCandidatePool(): Promise<void> {
     // P0-2: Nadia（りなてぃ）候補を取得
     console.log('[1/1] Nadia候補取得');
     console.log('-'.repeat(60));
-    try {
-      const nadiaCandidates = await fetchNadiaCandidates();
-      allCandidates.push(...nadiaCandidates);
-      console.log(`✓ Nadia: ${nadiaCandidates.length}件`);
-    } catch (error) {
-      // Nadia取得失敗でも継続（警告のみ）
-      console.warn('⚠️ Nadia候補取得に失敗しましたが、処理を継続します');
-      console.warn('エラー:', error instanceof Error ? error.message : error);
-    }
+    const nadiaCandidates = await fetchNadiaCandidates();
+    allCandidates.push(...nadiaCandidates);
+    console.log(`✓ Nadia: ${nadiaCandidates.length}件`);
     console.log('');
 
     // TODO P0-3: つくおき候補を追加

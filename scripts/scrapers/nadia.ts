@@ -26,6 +26,8 @@ const CONFIG = {
   defaultAuthor: 'りなてぃ',
   /** フォールバックタイトル */
   fallbackTitle: 'Nadiaレシピ',
+  /** ページ間の待機時間（ミリ秒） - レート制限対策 */
+  delayBetweenPages: 1000,
 };
 
 /**
@@ -63,6 +65,11 @@ export async function fetchNadiaCandidates(): Promise<CandidateRecipe[]> {
         console.warn(`ページ ${page} の取得に失敗:`, error instanceof Error ? error.message : error);
         // 1ページ失敗しても続行
         continue;
+      }
+
+      // 次のページへ進む前に待機（レート制限対策）
+      if (page < CONFIG.maxPages && candidates.length < CONFIG.targetCandidateCount) {
+        await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenPages));
       }
     }
 
@@ -131,7 +138,7 @@ async function fetchNadiaPage(
       // 相対URLを絶対URLに変換
       const recipeUrl = href.startsWith('http') 
         ? href 
-        : `https://oceans-nadia.com${href}`;
+        : new URL(href, 'https://oceans-nadia.com').toString();
 
       // /recipe/ を含むURLのみ対象
       if (!recipeUrl.includes('/recipe/')) return;
