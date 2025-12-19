@@ -8,6 +8,13 @@
 - 金曜夜：スープ優先（候補不足警告）
 - 買い出しリスト領域：未対応表示
 
+## Done（Sprint 2）
+- **P0-1: 方式Bの実行場所を確定し、候補プール生成の基盤を作る**
+  - 実行場所: GitHub Actions（workflow_dispatch）
+  - 生成スクリプト: `scripts/generate-candidates.ts`
+  - 出力: `public/candidate_pool.json`
+  - 参照: `docs/CANDIDATE_POOL_EXECUTION.md`
+
 ---
 
 ## P0（Sprint 2：M1達成に直結）
