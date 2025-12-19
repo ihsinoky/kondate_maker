@@ -1,0 +1,21 @@
+[
+  {
+    "title": "サンプルレシピ1",
+    "url": "https://example.com/recipe1",
+    "source": "サンプル",
+    "timeText": "30分",
+    "tags": [
+      "和食"
+    ],
+    "author": "テスト"
+  },
+  {
+    "title": "サンプルレシピ2",
+    "url": "https://example.com/recipe2",
+    "source": "サンプル",
+    "timeText": "20分",
+    "tags": [
+      "スープ"
+    ]
+  }
+]

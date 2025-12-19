@@ -1,0 +1,93 @@
+name: Generate Candidate Pool
+
+# 手動実行のみ（workflow_dispatch）
+# Sprint 2 Q2決定事項：週1回目安で手動更新
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: '実行理由（任意）'
+        required: false
+        default: '定期更新'
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 生成したファイルをコミットするため
+
+    # タイムアウト設定（外部アクセスがあるため）
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate candidate pool
+        id: generate
+        run: |
+          echo "実行理由: ${{ github.event.inputs.reason }}"
+          echo "候補プール生成を開始します..."
+          npm run generate:candidates
+        continue-on-error: true  # エラーでも次のステップに進む
+
+      - name: Check generation result
+        if: steps.generate.outcome == 'failure'
+        run: |
+          echo "::warning::候補プール生成に失敗しました。ログを確認してください。"
+          echo "エラーが発生しましたが、ワークフローは継続します。"
+
+      - name: Verify output file
+        run: |
+          if [ -f public/candidate_pool.json ]; then
+            echo "✓ candidate_pool.json が生成されました"
+            echo "ファイルサイズ: $(wc -c < public/candidate_pool.json) bytes"
+            echo "候補数: $(jq 'length' public/candidate_pool.json)"
+          else
+            echo "::error::candidate_pool.json が見つかりません"
+            exit 1
+          fi
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 変更があるかチェック
+          if git diff --quiet public/candidate_pool.json; then
+            echo "候補プールに変更はありません"
+          else
+            git add public/candidate_pool.json
+            git commit -m "chore: 候補プール更新 (workflow_dispatch)"
+            git push
+            echo "✓ 候補プールをコミットしました"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### 候補プール生成結果 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.generate.outcome }}" == "success" ]; then
+            echo "✅ 生成成功" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ 生成に問題がありました（詳細はログを確認）" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f public/candidate_pool.json ]; then
+            CANDIDATE_COUNT=$(jq 'length' public/candidate_pool.json)
+            echo "- 候補数: ${CANDIDATE_COUNT}件" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "実行理由: ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
