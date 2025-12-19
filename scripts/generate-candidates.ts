@@ -12,7 +12,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { CandidatePool } from './types.js';
+import { CandidatePool } from './types';
 
 /**
  * サンプル候補データを生成（P0-1: 基盤確認用）
