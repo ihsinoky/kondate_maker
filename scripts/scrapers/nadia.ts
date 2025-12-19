@@ -18,6 +18,14 @@ const CONFIG = {
   maxItemsPerPage: 30,
   /** 取得するページ数 */
   maxPages: 2,
+  /** 目標候補数 */
+  targetCandidateCount: 50,
+  /** りなてぃのユーザーID */
+  rinatyUserId: '22602',
+  /** デフォルトの著者名 */
+  defaultAuthor: 'りなてぃ',
+  /** フォールバックタイトル */
+  fallbackTitle: 'Nadiaレシピ',
 };
 
 /**
@@ -33,15 +41,12 @@ export async function fetchNadiaCandidates(): Promise<CandidateRecipe[]> {
     console.log('Nadia候補取得を開始...');
 
     // りなてぃのユーザーページから取得
-    // ユーザーID: 22602 (りなてぃ)
-    const rinatyUserId = '22602';
-    
     for (let page = 1; page <= CONFIG.maxPages; page++) {
       console.log(`Nadia ページ ${page}/${CONFIG.maxPages} を取得中...`);
       
       const pageUrl = page === 1 
-        ? `https://oceans-nadia.com/user/${rinatyUserId}`
-        : `https://oceans-nadia.com/user/${rinatyUserId}?page=${page}`;
+        ? `https://oceans-nadia.com/user/${CONFIG.rinatyUserId}`
+        : `https://oceans-nadia.com/user/${CONFIG.rinatyUserId}?page=${page}`;
 
       try {
         const pageCandidates = await fetchNadiaPage(pageUrl, urlSet);
@@ -50,8 +55,8 @@ export async function fetchNadiaCandidates(): Promise<CandidateRecipe[]> {
         console.log(`ページ ${page}: ${pageCandidates.length}件取得（累計: ${candidates.length}件）`);
         
         // 十分な候補が集まったら終了
-        if (candidates.length >= 50) {
-          console.log('目標候補数(50件)に到達しました');
+        if (candidates.length >= CONFIG.targetCandidateCount) {
+          console.log(`目標候補数(${CONFIG.targetCandidateCount}件)に到達しました`);
           break;
         }
       } catch (error) {
@@ -139,7 +144,7 @@ async function fetchNadiaPage(
       let title = $link.attr('title') || 
                   $link.find('img').attr('alt') ||
                   $link.text().trim() ||
-                  'Nadiaレシピ';
+                  CONFIG.fallbackTitle;
 
       // タイトルをクリーンアップ
       title = title.trim().replace(/\s+/g, ' ');
@@ -149,7 +154,7 @@ async function fetchNadiaPage(
         title,
         url: recipeUrl,
         source: 'Nadia',
-        author: 'りなてぃ', // りなてぃのページから取得しているため
+        author: CONFIG.defaultAuthor,
       };
 
       candidates.push(candidate);

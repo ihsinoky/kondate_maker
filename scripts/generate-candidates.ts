@@ -16,6 +16,9 @@ import * as path from 'path';
 import { CandidatePool } from './types';
 import { fetchNadiaCandidates } from './scrapers/nadia';
 
+/** 目標候補数 */
+const TARGET_CANDIDATE_COUNT = 50;
+
 /**
  * 候補プールを生成してファイルに保存
  */
@@ -64,11 +67,11 @@ async function generateCandidatePool(): Promise<void> {
     console.log('');
 
     // 目標達成チェック
-    if (allCandidates.length < 50) {
-      console.warn(`⚠️ 候補数が目標(50件)に達していません: ${allCandidates.length}件`);
+    if (allCandidates.length < TARGET_CANDIDATE_COUNT) {
+      console.warn(`⚠️ 候補数が目標(${TARGET_CANDIDATE_COUNT}件)に達していません: ${allCandidates.length}件`);
       console.warn('   HTML構造変更やネットワークエラーの可能性があります');
     } else {
-      console.log(`✓ 目標候補数(50件)を達成: ${allCandidates.length}件`);
+      console.log(`✓ 目標候補数(${TARGET_CANDIDATE_COUNT}件)を達成: ${allCandidates.length}件`);
     }
 
     // public/ ディレクトリに保存（GitHub Pages配信対象）
