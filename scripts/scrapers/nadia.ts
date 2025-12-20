@@ -38,7 +38,7 @@ const CONFIG = {
   /** 目標候補数 */
   targetCandidateCount: 50,
   /** りなてぃのユーザーID */
-  rinatyUserId: '22602',
+  rinatyUserId: '236306',
   /** デフォルトの著者名 */
   defaultAuthor: 'りなてぃ',
   /** フォールバックタイトル */
