@@ -32,6 +32,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+        continue-on-error: true  # fallbackがあるので失敗しても継続
+
       - name: Generate candidate pool
         id: generate
         run: |
@@ -51,7 +55,15 @@ jobs:
           if [ -f public/candidate_pool.json ]; then
             echo "✓ candidate_pool.json が生成されました"
             echo "ファイルサイズ: $(wc -c < public/candidate_pool.json) bytes"
-            echo "候補数: $(jq 'length' public/candidate_pool.json)"
+            CANDIDATE_COUNT=$(jq 'length' public/candidate_pool.json)
+            echo "候補数: ${CANDIDATE_COUNT}"
+            
+            # 最小候補数チェック（少なくとも10件必要）
+            if [ "${CANDIDATE_COUNT}" -lt 10 ]; then
+              echo "::error::候補数が不足しています（${CANDIDATE_COUNT}件 < 10件）"
+              echo "Playwrightのインストールとfallbackデータの両方に問題がある可能性があります"
+              exit 1
+            fi
           else
             echo "::error::candidate_pool.json が見つかりません"
             exit 1
