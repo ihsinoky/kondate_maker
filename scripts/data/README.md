@@ -33,7 +33,7 @@ WAFにより自動取得ができない場合、このfallbackデータを使用
   "recipes": [
     {
       "title": "レシピタイトル",
-      "url": "https://oceans-nadia.com/user/22602/recipe/XXXXXX",
+      "url": "https://oceans-nadia.com/user/236306/recipe/XXXXXX",
       "source": "Nadia",
       "author": "りなてぃ"
     }

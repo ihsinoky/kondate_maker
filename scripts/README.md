@@ -103,7 +103,7 @@ https://ihsinoky.github.io/kondate_maker/candidate_pool.json
 ## Nadia候補取得の詳細（P0-2）
 
 ### 取得対象
-- りなてぃのユーザーページ（ID: 22602）
+- りなてぃのユーザーページ（ID: 236306）
 - 複数ページから取得（デフォルト: 2ページ）
 - 目標: 50件以上の候補
 
