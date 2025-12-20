@@ -27,8 +27,6 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "playwright": "^1.57.0",
-    "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "tsx": "^4.21.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
