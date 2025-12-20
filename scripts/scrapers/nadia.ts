@@ -21,11 +21,12 @@ import * as cheerio from 'cheerio';
 import { chromium, Browser, Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { CandidateRecipe } from '../types';
 
 /** スクレイピング設定 */
 const CONFIG = {
-  /** User-Agent（礼儀正しく識別可能なものを使用） */
+  /** User-Agent（実ブラウザに近い値を使用し、AWS WAF検出を回避する目的） */
   userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   /** タイムアウト（ミリ秒） */
   timeout: 30000,
@@ -55,7 +56,9 @@ const CONFIG = {
 function loadFallbackData(): CandidateRecipe[] {
   try {
     // ES modulesでは__dirnameが使えないため、import.meta.urlを使用
-    const currentDir = path.dirname(new URL(import.meta.url).pathname);
+    // fileURLToPathを使用してクロスプラットフォーム対応
+    const currentFile = fileURLToPath(import.meta.url);
+    const currentDir = path.dirname(currentFile);
     const fallbackPath = path.join(currentDir, '../data/nadia-fallback.json');
     console.log(`  fallbackデータを読み込み中: ${fallbackPath}`);
     
@@ -169,6 +172,9 @@ export async function fetchNadiaCandidates(): Promise<CandidateRecipe[]> {
             candidates.push(...fallbackCandidates);
             usedFallback = true;
             break; // fallback使用時はループを抜ける
+          } else {
+            // fallbackも失敗した場合は続行を試みる
+            console.warn('  ⚠️ fallbackデータの読み込みに失敗しました。次のページを試みます。');
           }
         }
         
@@ -179,7 +185,7 @@ export async function fetchNadiaCandidates(): Promise<CandidateRecipe[]> {
       }
 
       // 次のページへ進む前に待機（レート制限対策）
-      if (!usedFallback && pageNum < CONFIG.maxPages && candidates.length < CONFIG.targetCandidateCount) {
+      if (pageNum < CONFIG.maxPages && candidates.length < CONFIG.targetCandidateCount) {
         await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenPages));
       }
     }
@@ -257,9 +263,27 @@ async function fetchNadiaPageWithBrowser(
       timeout: CONFIG.navigationTimeout,
     });
 
-    // WAFチャレンジ解決のため、十分な待機
-    // JavaScriptが実行され、ページがリロードされるまで待つ
-    console.log(`  WAFチャレンジ解決を待機中（最大15秒）...`);
+    const finalUrl = page.url();
+    const status = response?.status() || 0;
+    
+    console.log(`  初期レスポンス: ${status}`);
+    console.log(`  最終URL: ${finalUrl}`);
+
+    // HTMLを取得（早期チェック用）
+    const html = await page.content();
+    console.log(`  HTML長: ${html.length} bytes`);
+
+    // WAFチャレンジページかチェック（早期に検出して即座に失敗させる）
+    if (html.includes('awsWafCookieDomainList') || html.includes('AwsWafIntegration')) {
+      console.error(`  ❌ AWS WAFチャレンジページが検出されました`);
+      console.error(`  これは環境の制限により、ブラウザ自動化が検出されている可能性があります`);
+      const bodySnippet = html.substring(0, 300).replace(/\s+/g, ' ');
+      console.error(`  ボディスニペット: ${bodySnippet}...`);
+      throw new Error('AWS WAF challenge page detected - automated browser may have been detected');
+    }
+
+    // WAFでない場合は、レシピリンクの読み込みを待つ
+    console.log(`  レシピコンテンツの読み込みを待機中（最大15秒）...`);
     
     try {
       // ページがリロードされるまで待機、またはレシピリンクが表示されるまで待機
@@ -272,36 +296,20 @@ async function fetchNadiaPageWithBrowser(
       console.warn(`  待機タイムアウト: レシピリンクが見つからない可能性`);
     }
 
-    const finalUrl = page.url();
-    const status = response?.status() || 0;
-    
-    console.log(`  初期レスポンス: ${status}`);
-    console.log(`  最終URL: ${finalUrl}`);
+    // 再度HTMLを取得（動的コンテンツ対応）
+    const finalHtml = await page.content();
 
-    // HTMLを取得
-    const html = await page.content();
-    console.log(`  HTML長: ${html.length} bytes`);
-
-    // WAFチャレンジページかチェック
-    if (html.includes('awsWafCookieDomainList') || html.includes('AwsWafIntegration')) {
-      console.error(`  ❌ AWS WAFチャレンジが解決できませんでした`);
-      console.error(`  これは環境の制限により、ブラウザ自動化が検出されている可能性があります`);
-      const bodySnippet = html.substring(0, 300).replace(/\s+/g, ' ');
-      console.error(`  ボディスニペット: ${bodySnippet}...`);
-      throw new Error('AWS WAF challenge not resolved - automated browser detected');
-    }
-
-    // ステータスコードチェック（WAFチェック後に移動）
+    // ステータスコードチェック
     // 202はWAFチャレンジページなので、実際のコンテンツが取得できているかで判断
-    const hasRecipeLinks = html.includes('/recipe/');
-    if (!hasRecipeLinks && (status === 202 || !response.ok())) {
+    const hasRecipeLinks = finalHtml.includes('/recipe/');
+    if (!hasRecipeLinks && (status === 202 || !response?.ok())) {
       console.warn(`  ⚠️ HTTPエラーまたはコンテンツなし: ${status}`);
-      const bodySnippet = html.substring(0, 300).replace(/\s+/g, ' ');
+      const bodySnippet = finalHtml.substring(0, 300).replace(/\s+/g, ' ');
       console.warn(`  ボディスニペット: ${bodySnippet}...`);
       throw new Error(`HTTP ${status}: No recipe content found`);
     }
 
-    const $ = cheerio.load(html);
+    const $ = cheerio.load(finalHtml);
 
     // レシピカードを抽出
     const recipeSelectors = [
