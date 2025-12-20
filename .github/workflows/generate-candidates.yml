@@ -32,6 +32,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+        continue-on-error: true  # fallbackがあるので失敗しても継続
+
       - name: Generate candidate pool
         id: generate
         run: |
