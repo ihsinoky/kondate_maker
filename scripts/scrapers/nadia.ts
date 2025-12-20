@@ -21,7 +21,6 @@ import * as cheerio from 'cheerio';
 import { chromium, Browser, Page } from 'playwright';
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
 import { CandidateRecipe } from '../types';
 
 /** スクレイピング設定 */
@@ -52,13 +51,14 @@ const CONFIG = {
 
 /**
  * fallbackデータを読み込む
+ * 
+ * 注意: このパス処理はUnix/Linux/macOS環境を前提としています。
+ * Windows環境では動作しない可能性があります（MVP対応外）。
  */
 function loadFallbackData(): CandidateRecipe[] {
   try {
     // ES modulesでは__dirnameが使えないため、import.meta.urlを使用
-    // fileURLToPathを使用してクロスプラットフォーム対応
-    const currentFile = fileURLToPath(import.meta.url);
-    const currentDir = path.dirname(currentFile);
+    const currentDir = path.dirname(new URL(import.meta.url).pathname);
     const fallbackPath = path.join(currentDir, '../data/nadia-fallback.json');
     console.log(`  fallbackデータを読み込み中: ${fallbackPath}`);
     
@@ -219,10 +219,14 @@ export async function fetchNadiaCandidates(): Promise<CandidateRecipe[]> {
     console.warn('⚠️ Nadia候補を0件として継続します');
     return [];
   } finally {
-    // ブラウザを必ずクローズ
+    // ブラウザを必ずクローズ（防御的エラーハンドリング）
     if (browser) {
-      await browser.close();
-      console.log('Playwrightブラウザを終了しました');
+      try {
+        await browser.close();
+        console.log('Playwrightブラウザを終了しました');
+      } catch (closeError) {
+        console.warn('ブラウザのクローズ中にエラーが発生しましたが、処理を継続します:', closeError instanceof Error ? closeError.message : closeError);
+      }
     }
   }
 }
