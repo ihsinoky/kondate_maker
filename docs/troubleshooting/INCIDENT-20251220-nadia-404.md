@@ -214,8 +214,8 @@ if (parsedUrl.hostname !== CONFIG.expectedHostname) {
 
 ## Follow-ups（残タスク）
 
-- [ ] `scripts/data/nadia-fallback.json` 作成（手動50件）
-- [ ] fallback読み込みロジック実装
+- [x] `scripts/data/nadia-fallback.json` 作成（手動50件）
+- [x] fallback読み込みロジック実装
 - [ ] つくおき候補取得実装（P0-3）
 - [ ] 白ごはん.com候補取得実装（P0-4）
 - [ ] Unit Tests追加
