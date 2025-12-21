@@ -31,7 +31,7 @@ interface InboxWrapper {
  * トラッキングパラメータのリスト
  * Tracking parameters to be removed from URLs
  */
-const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid'];
+const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid'] as const;
 
 /**
  * URL正規化関数
@@ -79,11 +79,11 @@ function readInboxFile(filePath: string): CandidateRecipe[] {
     // ラッパー形式か配列形式かを判定
     if (Array.isArray(data)) {
       // 配列形式
-      return data.filter(item => item.url && item.title);
+      return data.filter(item => item.url?.trim() && item.title?.trim());
     } else if (data.candidates && Array.isArray(data.candidates)) {
       // ラッパー形式
       const wrapper = data as InboxWrapper;
-      const candidates = wrapper.candidates.filter(item => item.url && item.title);
+      const candidates = wrapper.candidates.filter(item => item.url?.trim() && item.title?.trim());
       
       // sourceHintがあり、各候補にsourceがない場合は補完
       if (wrapper.sourceHint) {
