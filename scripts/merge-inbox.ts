@@ -34,6 +34,15 @@ interface InboxWrapper {
 const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid'] as const;
 
 /**
+ * ソース名を正規化（先頭文字を大文字に）
+ * Normalize source name (capitalize first letter)
+ */
+function normalizeSource(source: string): string {
+  if (!source || source.length === 0) return source;
+  return source.charAt(0).toUpperCase() + source.slice(1).toLowerCase();
+}
+
+/**
  * URL正規化関数
  * URL normalization function
  * - fragment (#...) を除去 / Remove fragments
@@ -76,23 +85,31 @@ function readInboxFile(filePath: string): CandidateRecipe[] {
     const content = fs.readFileSync(filePath, 'utf-8');
     const data = JSON.parse(content);
     
+    // デフォルトのsourceを生成（ファイル名から推測）
+    const defaultSource = normalizeSource(path.basename(filePath, path.extname(filePath)).split('_')[1] || 'unknown');
+    
     // ラッパー形式か配列形式かを判定
     if (Array.isArray(data)) {
       // 配列形式
-      return data.filter(item => item.url?.trim() && item.title?.trim());
+      return data
+        .filter(item => item.url?.trim() && item.title?.trim())
+        .map(item => ({
+          ...item,
+          source: normalizeSource(item.source || defaultSource)
+        }));
     } else if (data.candidates && Array.isArray(data.candidates)) {
       // ラッパー形式
       const wrapper = data as InboxWrapper;
       const candidates = wrapper.candidates.filter(item => item.url?.trim() && item.title?.trim());
       
-      // sourceHintがあり、各候補にsourceがない場合は補完
-      if (wrapper.sourceHint) {
-        candidates.forEach(candidate => {
-          if (!candidate.source) {
-            candidate.source = wrapper.sourceHint;
-          }
-        });
-      }
+      // sourceを補完（優先順位: 既存source > sourceHint > defaultSource）
+      candidates.forEach(candidate => {
+        if (!candidate.source) {
+          candidate.source = normalizeSource(wrapper.sourceHint || defaultSource);
+        } else {
+          candidate.source = normalizeSource(candidate.source);
+        }
+      });
       
       return candidates;
     } else {
@@ -141,13 +158,20 @@ function readAllInboxFiles(inboxDir: string): CandidateRecipe[] {
 /**
  * 重複排除（既存優先）
  * 正規化URLをキーにして、既存の候補を優先する
+ * Deduplication (existing takes precedence)
  */
 function deduplicateCandidates(
   existing: CandidateRecipe[],
   newCandidates: CandidateRecipe[]
 ): CandidateRecipe[] {
+  // 既存候補のsourceを正規化
+  const normalizedExisting = existing.map(c => ({
+    ...c,
+    source: normalizeSource(c.source)
+  }));
+  
   // 既存の正規化URLのセットを作成
-  const existingUrls = new Set(existing.map(c => normalizeUrl(c.url)));
+  const existingUrls = new Set(normalizedExisting.map(c => normalizeUrl(c.url)));
   
   // 新規候補から未出のものだけを抽出
   const uniqueNew = newCandidates.filter(c => {
@@ -166,7 +190,7 @@ function deduplicateCandidates(
     return true;
   });
   
-  return [...existing, ...dedupedNew];
+  return [...normalizedExisting, ...dedupedNew];
 }
 
 /**
