@@ -10,6 +10,27 @@
 - **制約**: 曜日ごとのルール、全体方針（旬・時短等）、優先レシピサイトを守る。
 - **コスト方針**: 追加 SaaS は使用せず、Actions 無料枠を想定。
 
+## 候補プールの運用（Bookmarklet方式）
+
+外部サイトから候補URLを収集するために、Bookmarkletを使った運用を採用しています：
+
+1. **一覧ページでBookmarklet実行**: お気に入りのレシピサイトの一覧ページでBookmarkletを実行し、候補URLをJSON化
+2. **inboxにコミット**: `data/candidate_inbox/` にJSONファイルをコミット
+3. **自動マージ**: GitHub Actionが自動的に重複排除して `public/candidate_pool.json` を更新
+
+詳しい手順は [Bookmarklet利用ガイド](docs/bookmarklet/README.md) を参照してください。
+
+### クイックスタート
+
+```bash
+# 候補プールを手動で更新（inboxファイルがある場合）
+npm run merge:inbox
+
+# テスト実行
+npm run test:merge-inbox
+npm run test:merge-inbox:integration
+```
+
 ## 開発環境のセットアップ
 
 ### 必要なツール
