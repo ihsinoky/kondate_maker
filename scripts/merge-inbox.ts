@@ -2,9 +2,13 @@
 
 /**
  * Inbox マージスクリプト
+ * Inbox merge script
  * 
  * data/candidate_inbox/ 配下のJSONファイルを読み込み、
  * 正規化・重複排除を行い、public/candidate_pool.json を更新する。
+ * 
+ * Reads JSON files from data/candidate_inbox/, performs normalization
+ * and deduplication, and updates public/candidate_pool.json.
  * 
  * Sprint 2 P0: Bookmarklet方式の候補プール運用
  */
@@ -24,10 +28,17 @@ interface InboxWrapper {
 }
 
 /**
+ * トラッキングパラメータのリスト
+ * Tracking parameters to be removed from URLs
+ */
+const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid'];
+
+/**
  * URL正規化関数
- * - fragment (#...) を除去
- * - 末尾スラッシュを正規化
- * - トラッキングパラメータ (utm_*, fbclid等) を除去
+ * URL normalization function
+ * - fragment (#...) を除去 / Remove fragments
+ * - 末尾スラッシュを正規化 / Normalize trailing slashes
+ * - トラッキングパラメータ (utm_*, fbclid等) を除去 / Remove tracking parameters
  */
 export function normalizeUrl(url: string): string {
   try {
@@ -37,8 +48,7 @@ export function normalizeUrl(url: string): string {
     urlObj.hash = '';
     
     // トラッキングパラメータを除去
-    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'fbclid', 'gclid'];
-    trackingParams.forEach(param => {
+    TRACKING_PARAMS.forEach(param => {
       urlObj.searchParams.delete(param);
     });
     
@@ -79,7 +89,7 @@ function readInboxFile(filePath: string): CandidateRecipe[] {
       if (wrapper.sourceHint) {
         candidates.forEach(candidate => {
           if (!candidate.source) {
-            candidate.source = wrapper.sourceHint!;
+            candidate.source = wrapper.sourceHint;
           }
         });
       }
@@ -90,8 +100,8 @@ function readInboxFile(filePath: string): CandidateRecipe[] {
       return [];
     }
   } catch (error) {
-    console.error(`inbox読み込みエラー: ${filePath}`, error);
-    throw error;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read inbox file ${filePath}: ${errorMsg}`);
   }
 }
 

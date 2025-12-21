@@ -31,17 +31,9 @@ jobs:
         run: npm ci
 
       - name: Merge inbox to candidate pool
-        id: merge
         run: |
           echo "inbox マージを開始します..."
           npm run merge:inbox
-        continue-on-error: true  # エラーでも次のステップに進む
-
-      - name: Check merge result
-        if: steps.merge.outcome == 'failure'
-        run: |
-          echo "::error::inbox マージに失敗しました。ログを確認してください。"
-          exit 1
 
       - name: Verify output file
         run: |
