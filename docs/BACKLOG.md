@@ -33,9 +33,10 @@
    - 技術的論点：クライアント直fetchだとCORS/取得不可の可能性があるため、取得・解析を「サーバー側（API/Function）」「ビルド時」「GitHub Actionsで生成」など、どこで行うかを決める
    - 受け入れ条件：方式が1つに決まり、実装の入口（モジュールやAPI）が決まっている
 
-2. **候補収集基盤の確立（P0-2）**（完了→廃止→Bookmarklet方式へ移行）
-   - 当初はNadia自動スクレイパーを実装したが、WAF/自動化検出で失敗
-   - Bookmarklet方式に切り替え、安定的な候補収集を実現
+2. **候補収集基盤の確立（P0-2）**（完了→Bookmarklet方式へ移行済み）
+   - 当初はNadia自動スクレイパーを実装（2025-12-19完了）
+   - WAF/自動化検出により失敗が頻発したため、Bookmarklet方式に切り替え（2025-12-22）
+   - Bookmarklet方式により安定的な候補収集を実現
    - 出力：`[{ title, url, source, timeText?, tags? }]`
    - 参照: `docs/legacy/P0-2_COMPLETION_SUMMARY.md`（旧実装の記録）
    - **現行**: Bookmarkletで手動収集し、`data/candidate_inbox/` 経由でマージ
