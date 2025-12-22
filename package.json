@@ -7,7 +7,6 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "generate:candidates": "tsx scripts/generate-candidates.ts",
     "merge:inbox": "tsx scripts/merge-inbox.ts",
     "test:merge-inbox": "tsx scripts/merge-inbox.test.ts",
     "test:merge-inbox:integration": "tsx scripts/merge-inbox.integration.test.ts"
@@ -18,18 +17,15 @@
     "react-router-dom": "^6.20.1"
   },
   "devDependencies": {
-    "@types/cheerio": "^0.22.35",
     "@types/node": "^25.0.3",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
-    "cheerio": "^1.1.2",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
-    "playwright": "^1.57.0",
     "tsx": "^4.21.0",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"

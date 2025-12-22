@@ -1,21 +1,23 @@
-# 候補プール生成スクリプト
+# 候補プール管理スクリプト
 
-## 実行場所の決定（P0-1）
+## 運用方針（Bookmarklet + Inbox Merge）
 
-**候補取得/解析の実行場所：GitHub Actions（workflow_dispatch で手動実行）**
+**候補収集方法：Bookmarklet でブラウザから直接収集 → Inbox経由でマージ**
 
-### 決定理由
+### 運用フロー
 
-1. **CORS問題の回避**：ブラウザ（iPhone）から外部サイトHTMLを直接fetchするとCORSエラーが発生する可能性が高い
-2. **安定性**：サーバー側で実行することで、外部サイトへの安定したアクセスが可能
-3. **運用コスト**：GitHub Actionsの無料枠内で手動実行（週1回目安）により、追加コストなしで運用可能
-4. **既存スタックとの整合性**：既存のCI/CDパイプライン（GitHub Actions + GitHub Pages）に統合可能
+1. **Bookmarkletで候補収集**：レシピサイトの一覧ページでBookmarkletを実行してJSONを取得
+2. **Inboxにコミット**：`data/candidate_inbox/` にJSONファイルをコミット
+3. **自動マージ**：GitHub Actionが自動的に重複排除して `public/candidate_pool.json` を更新
 
-### 更新頻度
+詳しい手順は [Bookmarklet利用ガイド](../docs/bookmarklet/README.md) を参照してください。
 
-- **週1回目安、手動で更新**（Sprint 2 Q2決定事項）
-- 自動スケジュール（cron）前提にはしない
-- workflow_dispatch による手動実行
+### この方式を採用した理由
+
+1. **確実性**：ブラウザで表示できるページなら確実にURLを収集できる
+2. **WAF回避**：手動操作なので自動化検出されない
+3. **小分け更新**：少数の候補を段階的に追加できる
+4. **低コスト**：Playwright等の重い依存が不要
 
 ## ファイル構成
 
@@ -24,7 +26,9 @@ scripts/
 ├── README.md                    # このファイル
 ├── tsconfig.json                # TypeScript設定
 ├── types.ts                     # 候補プールの型定義
-└── generate-candidates.ts       # 候補プール生成スクリプト
+├── merge-inbox.ts               # inbox マージスクリプト
+├── merge-inbox.test.ts          # ユニットテスト
+└── merge-inbox.integration.test.ts  # 統合テスト
 ```
 
 ## 候補プールの型定義
@@ -46,32 +50,30 @@ interface CandidateRecipe {
 # 依存関係のインストール
 npm ci
 
-# 候補プール生成
-npm run generate:candidates
+# inbox を candidate_pool.json にマージ
+npm run merge:inbox
+
+# テスト実行
+npm run test:merge-inbox
+npm run test:merge-inbox:integration
 ```
 
-生成されたファイル：`public/candidate_pool.json`
+## GitHub Actions での自動実行
 
-## GitHub Actions での実行方法
+`data/candidate_inbox/` にJSONファイルがコミット（push）されると、自動的に以下が実行されます：
 
-1. GitHubリポジトリの **Actions** タブを開く
-2. **Generate Candidate Pool** ワークフローを選択
-3. **Run workflow** ボタンをクリック
-4. 実行理由（任意）を入力して実行
-
-### ワークフローの動作
-
-1. 依存関係のインストール
-2. 候補プール生成スクリプトの実行
-3. `public/candidate_pool.json` の生成
+1. **Merge Inbox to Candidate Pool** ワークフローが起動
+2. inbox内のすべてのJSONを読み込み
+3. 既存の `public/candidate_pool.json` と重複排除マージ
 4. 変更がある場合、自動的にコミット・プッシュ
 5. 実行結果のサマリー表示
 
-### エラーハンドリング
+### ワークフローの特徴
 
-- 生成に失敗しても、ワークフロー全体は失敗にならない
-- エラーメッセージとスタックトレースがログに記録される
-- 警告として表示され、問題の追跡が可能
+- **自動起動**：inbox配下に`.json`ファイルがpushされると自動実行
+- **重複排除**：URLを正規化して重複を自動排除
+- **差分コミット**：新規候補がある場合のみコミット
+- **低閾値**：候補数が5件未満でも警告のみ（Failしない）
 
 ## GitHub Pages での配信
 
@@ -86,70 +88,74 @@ npm run generate:candidates
 https://ihsinoky.github.io/kondate_maker/candidate_pool.json
 ```
 
-## 実装状況
+## Inbox JSON フォーマット
 
-### ✓ 完了
-- **P0-1**: 候補プール生成の基盤（GitHub Actions実行環境）
-- **P0-2**: Nadia（りなてぃ）候補取得
+Bookmarkletが生成するJSON形式：
 
-### 今後の拡張（P0-3〜P0-5）
-
-今後以下の実装を予定：
-
-- **P0-3**: つくおき候補取得
-- **P0-4**: 白ごはん.com候補取得（最低限）
-- **P0-5**: 候補プールキャッシュ
-
-## Nadia候補取得の詳細（P0-2）
-
-### 取得対象
-- りなてぃのユーザーページ（ID: 236306）
-- 複数ページから取得（デフォルト: 2ページ）
-- 目標: 50件以上の候補
-
-### 取得方式
-- 一覧/検索結果ページから抽出（詳細ページは不使用）
-- HTML構造変更に強い実装（複数のセレクタパターンを試行）
-- タイムアウト設定: 10秒/リクエスト
-- User-Agent設定: 礼儀正しい識別用
-
-### エラーハンドリング
-- ネットワークエラー: 警告ログを出力し、0件で継続
-- ページ取得失敗: 次のページへ継続
-- パース失敗: 個別レシピをスキップして継続
-- 全体失敗: 空配列を返してパイプライン継続
-
-### 出力フィールド
-- `title`: レシピタイトル
-- `url`: レシピURL（実在形式: https://oceans-nadia.com/recipe/...）
-- `source`: "Nadia"
-- `author`: "りなてぃ"
-
-### 検証方法
-```bash
-# スクレイピングロジックの検証（モックHTML使用）
-npx tsx scripts/scrapers/nadia-verify.ts
-
-# 実際の候補取得（ネットワークアクセスあり）
-npm run generate:candidates
+```json
+{
+  "generatedAt": "2025-12-21T12:34:56.789Z",
+  "sourcePage": "https://oceans-nadia.com/user/236306",
+  "sourceHint": "nadia",
+  "candidates": [
+    {
+      "title": "レシピタイトル",
+      "url": "https://oceans-nadia.com/user/236306/recipe/516001"
+    }
+  ]
+}
 ```
+
+### フィールド説明
+
+- `generatedAt`: JSON生成日時（ISO 8601形式）
+- `sourcePage`: 抽出元のページURL
+- `sourceHint`: ソースサイトのヒント（例: "nadia", "tsukuoki", "shirohgan"）
+- `candidates`: 候補の配列
+  - `title`: レシピタイトル（100文字まで）
+  - `url`: レシピURL（絶対URL）
+
+### マージ処理
+
+1. **URL正規化**：
+   - フラグメント（`#...`）を除去
+   - トラッキングパラメータ（`utm_*`, `fbclid`, `gclid`）を除去
+   - 末尾スラッシュの正規化
+
+2. **重複排除**：
+   - 正規化されたURLで重複判定
+   - 既存の候補プールと照合
+   - 新規URLのみを追加
+
+3. **ソース推定**：
+   - `sourceHint` から適切な `source` フィールドを生成
+   - 例: "nadia" → "Nadia"
 
 ## トラブルシューティング
 
 ### ワークフローが失敗する場合
 
-1. Actions タブでログを確認
-2. エラーメッセージとスタックトレースを確認
-3. 外部サイトのアクセス制限やタイムアウトの可能性を検討
+1. **Actions タブでログを確認**
+   - "Merge Inbox to Candidate Pool" ワークフローを確認
+   - エラーメッセージを確認
+
+2. **JSONフォーマットを確認**
+   - inbox内のJSONファイルが正しい形式か確認
+   - 必須フィールド（`candidates` 配列）が存在するか確認
+
+3. **ローカルで再現**
+   ```bash
+   npm run merge:inbox
+   ```
 
 ### 候補プールが更新されない場合
 
-1. ワークフローが正常に完了しているか確認
-2. `public/candidate_pool.json` にコミットがあるか確認
-3. デプロイワークフローが実行されているか確認
+1. **重複チェック**：すべて既存候補と重複している可能性
+2. **ワークフロー確認**：Actions タブで実行履歴を確認
+3. **デプロイ確認**：デプロイワークフローが実行されているか確認
 
 ## 関連ドキュメント
 
-- [docs/sprints/SPRINT_02.md](../docs/sprints/SPRINT_02.md) - Sprint 2 の決定事項
-- [docs/RISKS.md](../docs/RISKS.md) - CORS/HTML変更/負荷リスク
-- [docs/BACKLOG.md](../docs/BACKLOG.md) - P0-1, P0-5 の詳細
+- [Bookmarklet利用ガイド](../docs/bookmarklet/README.md) - 候補収集の詳細手順
+- [docs/PROCESS.md](../docs/PROCESS.md) - 運用プロセス全体
+- [docs/legacy/](../docs/legacy/) - 過去の自動スクレイピング方式（廃止済み）
