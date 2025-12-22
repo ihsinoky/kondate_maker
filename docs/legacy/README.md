@@ -19,7 +19,9 @@ Bookmarklet方式に一本化。ブラウザで直接候補URLを収集し、`da
 
 **参考ドキュメント**:
 - [Nadia WAF問題のインシデントレポート](../troubleshooting/INCIDENT-20251220-nadia-404.md)
-- [P0-2 完了サマリー](./P0-2_COMPLETION_SUMMARY.md)（元の実装記録）
+- [P0-1 完了サマリー](./P0-1_COMPLETION_SUMMARY.md)（元の基盤実装記録）
+- [P0-2 完了サマリー](./P0-2_COMPLETION_SUMMARY.md)（元のNadia実装記録）
+- [候補プール生成の実行場所決定書](./CANDIDATE_POOL_EXECUTION.md)（元の設計書）
 
 ## 復活させる場合の条件
 
