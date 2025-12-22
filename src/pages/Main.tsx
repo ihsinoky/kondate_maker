@@ -3,22 +3,7 @@ import { MenuSlot } from '../types/menu'
 import { copyToClipboard } from '../lib/clipboard'
 import { loadSettings } from '../lib/settings'
 import { isSoupRecipe } from '../lib/soupDetector'
-
-// Placeholder recipe data (will be replaced with actual API calls later)
-const PLACEHOLDER_RECIPES = [
-  { title: 'ハンバーグ', url: 'https://example.com/recipe1', source: 'クックパッド' },
-  { title: '唐揚げ', url: 'https://example.com/recipe2', source: '楽天レシピ' },
-  { title: 'カレー', url: 'https://example.com/recipe3', source: 'クックパッド' },
-  { title: '豚の生姜焼き', url: 'https://example.com/recipe4', source: 'クックパッド' },
-  { title: 'パスタ', url: 'https://example.com/recipe5', source: '楽天レシピ' },
-  { title: 'チャーハン', url: 'https://example.com/recipe6', source: 'クックパッド' },
-  { title: '焼き魚', url: 'https://example.com/recipe7', source: '楽天レシピ' },
-  { title: '肉じゃが', url: 'https://example.com/recipe8', source: 'クックパッド' },
-  { title: 'オムライス', url: 'https://example.com/recipe9', source: 'クックパッド' },
-  { title: '味噌汁', url: 'https://example.com/recipe10', source: 'クックパッド' },
-  { title: 'コーンスープ', url: 'https://example.com/recipe11', source: '楽天レシピ' },
-  { title: 'クリームシチュー', url: 'https://example.com/recipe12', source: 'クックパッド' },
-]
+import { loadCandidatePool, formatTimestamp, CandidateRecipe } from '../lib/candidatePool'
 
 /**
  * Helper function to get a fallback recipe when no specific recipes are available
@@ -34,8 +19,8 @@ type FallbackRecipeResult = {
 }
 
 function getFallbackRecipe(
-  nonSoupRecipes: typeof PLACEHOLDER_RECIPES,
-  allRecipes: typeof PLACEHOLDER_RECIPES,
+  nonSoupRecipes: CandidateRecipe[],
+  allRecipes: CandidateRecipe[],
   currentIndex: number,
   useRandom: boolean = false
 ): FallbackRecipeResult {
@@ -68,7 +53,16 @@ function getFallbackRecipe(
 function Main() {
   const [menuSlots, setMenuSlots] = useState<MenuSlot[]>([])
   const [copyStatus, setCopyStatus] = useState<string>('')
+  const [candidateRecipes, setCandidateRecipes] = useState<CandidateRecipe[]>([])
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+  const [poolWarning, setPoolWarning] = useState<string>('')
+  const [isLoadingPool, setIsLoadingPool] = useState<boolean>(false)
   const statusTimeoutRef = useRef<number | null>(null)
+
+  // Load candidate pool on mount
+  useEffect(() => {
+    loadPool(false)
+  }, [])
 
   // Clear timeout on unmount to prevent memory leaks
   useEffect(() => {
@@ -79,8 +73,41 @@ function Main() {
     }
   }, [])
 
-  // Generate placeholder menu data
+  // Load candidate pool from cache or network
+  const loadPool = async (forceReload: boolean) => {
+    setIsLoadingPool(true)
+    setPoolWarning('')
+    
+    try {
+      const result = await loadCandidatePool(forceReload)
+      setCandidateRecipes(result.recipes)
+      setLastUpdate(result.timestamp)
+      
+      if (result.warning) {
+        setPoolWarning(result.warning)
+      }
+      
+      console.log(`Candidate pool loaded from ${result.source}:`, result.recipes.length, 'recipes')
+    } catch (error) {
+      console.error('Failed to load candidate pool:', error)
+      setPoolWarning('候補の読み込みに失敗しました')
+    } finally {
+      setIsLoadingPool(false)
+    }
+  }
+
+  // Handler for manual reload button
+  const handleReloadCandidates = () => {
+    loadPool(true)
+  }
+
+  // Generate menu data from candidate pool
   const generateMenu = () => {
+    if (candidateRecipes.length === 0) {
+      setCopyStatus('候補プールが読み込まれていません')
+      return
+    }
+
     const slots: MenuSlot[] = [
       { day: '土', mealTime: '昼', items: [] },
       { day: '土', mealTime: '夜', items: [] },
@@ -98,8 +125,8 @@ function Main() {
     const wednesdayRecipes = settings?.wednesdayRecipes || []
     const fridaySoupRecipes = settings?.fridaySoupRecipes || []
 
-    // Filter soup recipes from all available recipes
-    const allRecipes = [...PLACEHOLDER_RECIPES]
+    // Filter soup recipes from candidate pool
+    const allRecipes = [...candidateRecipes]
     const soupRecipes = allRecipes.filter(recipe => isSoupRecipe(recipe.title))
     const nonSoupRecipes = allRecipes.filter(recipe => !isSoupRecipe(recipe.title))
 
@@ -199,8 +226,34 @@ function Main() {
     <div className="main-page">
       <h1>献立メーカー</h1>
       
+      <div className="pool-status">
+        <div className="pool-info">
+          <span>候補プール: {candidateRecipes.length}件</span>
+          <span className="pool-timestamp">
+            最終取得: {formatTimestamp(lastUpdate)}
+          </span>
+        </div>
+        <button 
+          onClick={handleReloadCandidates}
+          className="btn btn-reload"
+          disabled={isLoadingPool}
+        >
+          {isLoadingPool ? '読み込み中...' : '候補を再読み込み'}
+        </button>
+      </div>
+
+      {poolWarning && (
+        <div className="pool-warning" role="alert">
+          ⚠️ {poolWarning}
+        </div>
+      )}
+      
       <div className="action-buttons">
-        <button onClick={generateMenu} className="btn btn-primary">
+        <button 
+          onClick={generateMenu} 
+          className="btn btn-primary"
+          disabled={candidateRecipes.length === 0}
+        >
           献立を作る
         </button>
         <button 
