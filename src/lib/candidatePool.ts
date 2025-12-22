@@ -215,7 +215,7 @@ export function formatTimestamp(timestamp: string | null): string {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    }).format(date).replace(/\//g, '/').replace(',', '')
+    }).format(date).replace(',', '')
   } catch {
     return '不明'
   }
