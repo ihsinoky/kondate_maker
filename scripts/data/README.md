@@ -1,48 +1,22 @@
-# Scraper Data Directory
+# Scripts Data Directory
 
-このディレクトリには、スクレイパーが使用する静的データやfallbackデータを保管しています。
+このディレクトリには、スクリプト実行に必要なデータファイルを配置します。
 
-## ファイル一覧
+## 現在の運用
 
-### nadia-fallback.json
-**用途**: Nadia候補取得のfallbackデータ（AWS WAF対策）
+現在は **Bookmarklet方式** を採用しているため、このディレクトリに静的なfallbackデータは保持していません。
 
-**背景**:  
-oceans-nadia.com は AWS WAF (Web Application Firewall) で保護されており、
-Playwright等の自動化ツールによるアクセスが検出・ブロックされます。
-WAFにより自動取得ができない場合、このfallbackデータを使用します。
+候補収集は以下の流れで行います：
 
-**内容**:
-- りなてぃのレシピ 50件
-- 手動でキュレーション（2025-12-20時点）
-- title, url, source, author フィールドを含む
+1. レシピサイトでBookmarkletを実行してJSONを取得
+2. `data/candidate_inbox/` にJSONファイルをコミット
+3. GitHub Actionが自動的に重複排除して `public/candidate_pool.json` を更新
 
-**更新方法**:
-1. 手動でNadia（りなてぃのページ）からレシピを収集
-2. JSONフォーマットに整形
-3. lastUpdated フィールドを更新
-4. 最低でも週1回程度の更新を推奨
+詳細は [Bookmarklet利用ガイド](../../docs/bookmarklet/README.md) を参照してください。
 
-**形式**:
-```json
-{
-  "note": "説明文",
-  "source": "Nadia (りなてぃ)",
-  "lastUpdated": "YYYY-MM-DD",
-  "updateMethod": "manual",
-  "recipes": [
-    {
-      "title": "レシピタイトル",
-      "url": "https://oceans-nadia.com/user/236306/recipe/XXXXXX",
-      "source": "Nadia",
-      "author": "りなてぃ"
-    }
-  ]
-}
-```
+## 過去の運用（廃止済み）
 
-## 関連ドキュメント
+以前は自動スクレイピング方式を採用しており、AWS WAF対策として `nadia-fallback.json` を保持していました。
 
-- [Nadia WAF問題のインシデントレポート](../../docs/troubleshooting/INCIDENT-20251220-nadia-404.md)
-- [Nadiaスクレイパー実装](../scrapers/nadia.ts)
-- [候補プール生成スクリプト](../generate-candidates.ts)
+詳細は [Legacy Documentation](../../docs/legacy/README.md) を参照してください。
+
