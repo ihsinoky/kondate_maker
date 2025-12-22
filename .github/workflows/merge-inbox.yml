@@ -1,0 +1,86 @@
+name: Merge Inbox to Candidate Pool
+
+# inbox配下のJSONファイルがpushされたら自動的にマージ
+on:
+  push:
+    paths:
+      - 'data/candidate_inbox/**/*.json'
+    branches:
+      - main
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 生成したファイルをコミットするため
+
+    # タイムアウト設定
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Merge inbox to candidate pool
+        id: merge
+        run: |
+          echo "inbox マージを開始します..."
+          npm run merge:inbox
+
+      - name: Verify output file
+        run: |
+          if [ -f public/candidate_pool.json ]; then
+            echo "✓ candidate_pool.json が存在します"
+            echo "ファイルサイズ: $(wc -c < public/candidate_pool.json) bytes"
+            CANDIDATE_COUNT=$(jq 'length' public/candidate_pool.json)
+            echo "候補数: ${CANDIDATE_COUNT}"
+            
+            # 候補数が少ない場合は警告（Failにはしない）
+            if [ "${CANDIDATE_COUNT}" -lt 5 ]; then
+              echo "::warning::候補数が少なめです（${CANDIDATE_COUNT}件）"
+            fi
+          else
+            echo "::error::candidate_pool.json が見つかりません"
+            exit 1
+          fi
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          # 変更があるかチェック
+          if git diff --quiet public/candidate_pool.json; then
+            echo "候補プールに変更はありません（重複のみ）"
+          else
+            git add public/candidate_pool.json
+            git commit -m "chore: 候補プール更新 (inbox merge)"
+            git push
+            echo "✓ 候補プールをコミットしました"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### inbox マージ結果 🎉" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.merge.outcome }}" == "success" ]; then
+            echo "✅ マージ成功" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ マージ失敗" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ -f public/candidate_pool.json ]; then
+            CANDIDATE_COUNT=$(jq 'length' public/candidate_pool.json)
+            echo "- 候補数: ${CANDIDATE_COUNT}件" >> $GITHUB_STEP_SUMMARY
+          fi
