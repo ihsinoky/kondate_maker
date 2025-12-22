@@ -166,8 +166,8 @@ export async function loadCandidatePool(forceReload: boolean = false): Promise<{
   // Try to fetch from network
   try {
     const recipes = await fetchCandidatePool()
-    saveCachedPool(recipes)
     const timestamp = new Date().toISOString()
+    saveCachedPool(recipes)
     
     return {
       recipes,
@@ -199,17 +199,6 @@ export async function loadCandidatePool(forceReload: boolean = false): Promise<{
 }
 
 /**
- * Get the last update timestamp from cache
- */
-export function getLastUpdateTimestamp(): string | null {
-  try {
-    return localStorage.getItem(CACHE_TIMESTAMP_KEY)
-  } catch {
-    return null
-  }
-}
-
-/**
  * Format timestamp for display
  */
 export function formatTimestamp(timestamp: string | null): string {
@@ -219,13 +208,14 @@ export function formatTimestamp(timestamp: string | null): string {
   
   try {
     const date = new Date(timestamp)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    
-    return `${year}/${month}/${day} ${hours}:${minutes}`
+    return new Intl.DateTimeFormat('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }).format(date).replace(/\//g, '/').replace(',', '')
   } catch {
     return '不明'
   }
