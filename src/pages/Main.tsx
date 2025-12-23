@@ -5,6 +5,8 @@ import { loadSettings } from '../lib/settings'
 import { isSoupRecipe } from '../lib/soupDetector'
 import { loadCandidatePool, formatTimestamp, CandidateRecipe } from '../lib/candidatePool'
 
+const RINATY_AUTHOR_NAME = 'りなてぃ'
+
 interface IngredientItem {
   name: string
   isMust: boolean
@@ -170,7 +172,7 @@ function Main() {
       score: calculateRecipeScore(
         recipe,
         ingredients,
-        recipe.author === 'りなてぃ'
+        recipe.author === RINATY_AUTHOR_NAME
       )
     }))
 
@@ -188,7 +190,7 @@ function Main() {
       // Score and sort the pool
       const scored = pool.map(recipe => ({
         recipe,
-        score: calculateRecipeScore(recipe, ingredients, recipe.author === 'りなてぃ')
+        score: calculateRecipeScore(recipe, ingredients, recipe.author === RINATY_AUTHOR_NAME)
       }))
       scored.sort((a, b) => b.score - a.score)
 
@@ -281,14 +283,17 @@ function Main() {
     })
 
     // Check if must ingredients were satisfied
+    const warnings: string[] = []
     const allSelectedTitles = slots.map(s => s.items.map(i => i.title)).flat().join(' ').toLowerCase()
     mustIngredients.forEach(ingredient => {
       if (!allSelectedTitles.includes(ingredient.name.toLowerCase())) {
-        setIngredientWarning(prev => 
-          (prev ? prev + '\n' : '') + `必須食材「${ingredient.name}」を含む候補が見つかりませんでした。`
-        )
+        warnings.push(`必須食材「${ingredient.name}」を含む候補が見つかりませんでした。`)
       }
     })
+    
+    if (warnings.length > 0) {
+      setIngredientWarning(warnings.join('\n'))
+    }
 
     setMenuSlots(slots)
     setCopyStatus('')
@@ -369,7 +374,7 @@ function Main() {
         <textarea
           className="ingredient-input"
           rows={6}
-          placeholder="例：&#10;白菜*&#10;豚肉&#10;にんじん&#10;&#10;（*付きは必須食材、最大2つまで）"
+          placeholder={'例：\n白菜*\n豚肉\nにんじん\n\n（*付きは必須食材、最大2つまで）'}
           value={ingredientInput}
           onChange={(e) => setIngredientInput(e.target.value)}
         />
