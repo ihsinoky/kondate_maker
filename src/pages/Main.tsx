@@ -67,13 +67,15 @@ function Main() {
 
   // Parse ingredient input into structured format
   // Format: "ingredient" or "ingredient*" for must (max 2 must items)
-  const parseIngredientInput = (input: string): IngredientItem[] => {
+  // Returns ingredients array and count of must markers in original input
+  const parseIngredientInput = (input: string): { ingredients: IngredientItem[], totalMustCount: number } => {
     const lines = input.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
     
     const ingredients: IngredientItem[] = []
     let mustCount = 0
+    let totalMustCount = 0
 
     lines.forEach(line => {
       const isMust = line.endsWith('*')
@@ -81,6 +83,7 @@ function Main() {
       
       if (name.length > 0) {
         if (isMust) {
+          totalMustCount++
           if (mustCount < 2) {
             ingredients.push({ name, isMust: true })
             mustCount++
@@ -94,7 +97,7 @@ function Main() {
       }
     })
 
-    return ingredients
+    return { ingredients, totalMustCount }
   }
 
   // Calculate match score for a recipe based on ingredients
@@ -134,14 +137,14 @@ function Main() {
     }
 
     // Parse ingredient input
-    const ingredients = parseIngredientInput(ingredientInput)
+    const { ingredients, totalMustCount } = parseIngredientInput(ingredientInput)
     const mustIngredients = ingredients.filter(i => i.isMust)
     
     // Collect all warnings
     const warnings: string[] = []
     
     // Validate must ingredient count
-    if (mustIngredients.length > 2) {
+    if (totalMustCount > 2) {
       warnings.push('必須食材は最大2つまでです。最初の2つのみ必須として扱います。')
     }
 
@@ -167,18 +170,16 @@ function Main() {
     const soupRecipes = allRecipes.filter(recipe => isSoupRecipe(recipe.title))
     const nonSoupRecipes = allRecipes.filter(recipe => !isSoupRecipe(recipe.title))
 
-    // Score all recipes based on ingredients
-    const scoredRecipes = allRecipes.map(recipe => ({
-      recipe,
-      score: calculateRecipeScore(
+    // Pre-calculate scores for all recipes to avoid rescoring in selectBestRecipe
+    const recipeScores = new Map<string, number>()
+    allRecipes.forEach(recipe => {
+      const score = calculateRecipeScore(
         recipe,
         ingredients,
         recipe.author === RINATY_AUTHOR_NAME
       )
-    }))
-
-    // Sort by score (highest first)
-    scoredRecipes.sort((a, b) => b.score - a.score)
+      recipeScores.set(recipe.url, score)
+    })
 
     // Track which recipes have been used to avoid duplicates when possible
     const usedRecipeUrls = new Set<string>()
@@ -188,26 +189,26 @@ function Main() {
       pool: CandidateRecipe[],
       allowDuplicates: boolean = false
     ): CandidateRecipe | null => {
-      // Score and sort the pool
-      const scored = pool.map(recipe => ({
-        recipe,
-        score: calculateRecipeScore(recipe, ingredients, recipe.author === RINATY_AUTHOR_NAME)
-      }))
-      scored.sort((a, b) => b.score - a.score)
+      // Sort pool by pre-calculated scores
+      const sorted = [...pool].sort((a, b) => {
+        const scoreA = recipeScores.get(a.url) || 0
+        const scoreB = recipeScores.get(b.url) || 0
+        return scoreB - scoreA
+      })
 
       // Find first unused recipe if avoiding duplicates
       if (!allowDuplicates) {
-        for (const item of scored) {
-          if (!usedRecipeUrls.has(item.recipe.url)) {
-            usedRecipeUrls.add(item.recipe.url)
-            return item.recipe
+        for (const recipe of sorted) {
+          if (!usedRecipeUrls.has(recipe.url)) {
+            usedRecipeUrls.add(recipe.url)
+            return recipe
           }
         }
       }
 
       // If all used or duplicates allowed, return best scored
-      if (scored.length > 0) {
-        const selected = scored[0].recipe
+      if (sorted.length > 0) {
+        const selected = sorted[0]
         usedRecipeUrls.add(selected.url)
         return selected
       }
@@ -242,16 +243,19 @@ function Main() {
         }
         // Try to find best soup from candidate pool
         else if (soupRecipes.length > 0) {
-          const selected = selectBestRecipe(soupRecipes, false)
+          let selected = selectBestRecipe(soupRecipes, false)
+          if (!selected) {
+            // Allow duplicates if we have run out of unique soup recipes
+            selected = selectBestRecipe(soupRecipes, true)
+          }
           if (selected) {
             slot.items = [selected]
             slot.isSoup = true
           } else {
-            // Fallback to any soup even if duplicate
-            const fallbackSoup = soupRecipes[0]
-            slot.items = [fallbackSoup]
-            slot.isSoup = true
-            usedRecipeUrls.add(fallbackSoup.url)
+            // As a final fallback, treat this as a soup candidate shortage
+            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
+            slot.warning = '要確認（スープ候補不足）'
+            slot.isSoup = false
           }
         } 
         // If no soup candidates available, use best non-soup with warning
@@ -284,9 +288,11 @@ function Main() {
     })
 
     // Check if must ingredients were satisfied
-    const allSelectedTitles = slots.map(s => s.items.map(i => i.title)).flat().join(' ').toLowerCase()
+    const selectedTitles = slots.flatMap(s => s.items.map(i => i.title.toLowerCase()))
     mustIngredients.forEach(ingredient => {
-      if (!allSelectedTitles.includes(ingredient.name.toLowerCase())) {
+      const ingredientName = ingredient.name.toLowerCase()
+      const isPresent = selectedTitles.some(title => title.includes(ingredientName))
+      if (!isPresent) {
         warnings.push(`必須食材「${ingredient.name}」を含む候補が見つかりませんでした。`)
       }
     })
