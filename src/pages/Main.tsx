@@ -137,11 +137,12 @@ function Main() {
     const ingredients = parseIngredientInput(ingredientInput)
     const mustIngredients = ingredients.filter(i => i.isMust)
     
+    // Collect all warnings
+    const warnings: string[] = []
+    
     // Validate must ingredient count
     if (mustIngredients.length > 2) {
-      setIngredientWarning('必須食材は最大2つまでです。最初の2つのみ必須として扱います。')
-    } else {
-      setIngredientWarning('')
+      warnings.push('必須食材は最大2つまでです。最初の2つのみ必須として扱います。')
     }
 
     const slots: MenuSlot[] = [
@@ -283,7 +284,6 @@ function Main() {
     })
 
     // Check if must ingredients were satisfied
-    const warnings: string[] = []
     const allSelectedTitles = slots.map(s => s.items.map(i => i.title)).flat().join(' ').toLowerCase()
     mustIngredients.forEach(ingredient => {
       if (!allSelectedTitles.includes(ingredient.name.toLowerCase())) {
@@ -291,8 +291,11 @@ function Main() {
       }
     })
     
+    // Set all warnings at once (or clear if none)
     if (warnings.length > 0) {
       setIngredientWarning(warnings.join('\n'))
+    } else {
+      setIngredientWarning('')
     }
 
     setMenuSlots(slots)
