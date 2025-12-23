@@ -62,7 +62,7 @@ function getBasePath(): string {
  */
 async function fetchCandidatePool(): Promise<CandidateRecipe[]> {
   const basePath = getBasePath()
-  const url = `${basePath}candidate_pool.json`
+  const url = basePath.endsWith('/') ? `${basePath}candidate_pool.json` : `${basePath}/candidate_pool.json`
   
   try {
     const response = await fetch(url)
@@ -109,12 +109,24 @@ function loadCachedPool(): CandidatePoolCache | null {
     
     const recipes = JSON.parse(cached) as CandidateRecipe[]
     
-    // Validate cached data
+    // Validate cached data structure
     if (!Array.isArray(recipes) || recipes.length === 0) {
       return null
     }
     
-    return { recipes, timestamp }
+    // Validate individual recipe objects (same validation as fetchCandidatePool)
+    const validRecipes = recipes.filter(item => 
+      item && 
+      typeof item === 'object' && 
+      typeof item.title === 'string' && 
+      typeof item.url === 'string'
+    )
+    
+    if (validRecipes.length === 0) {
+      return null
+    }
+    
+    return { recipes: validRecipes, timestamp }
   } catch (error) {
     console.error('Error loading cached pool:', error)
     return null
@@ -208,6 +220,7 @@ export function formatTimestamp(timestamp: string | null): string {
   
   try {
     const date = new Date(timestamp)
+    // ja-JP locale produces "YYYY/MM/DD HH:MM" format with space separator
     return new Intl.DateTimeFormat('ja-JP', {
       year: 'numeric',
       month: '2-digit',
@@ -215,7 +228,7 @@ export function formatTimestamp(timestamp: string | null): string {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    }).format(date).replace(',', '')
+    }).format(date)
   } catch {
     return '不明'
   }
