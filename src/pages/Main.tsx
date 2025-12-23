@@ -5,49 +5,9 @@ import { loadSettings } from '../lib/settings'
 import { isSoupRecipe } from '../lib/soupDetector'
 import { loadCandidatePool, formatTimestamp, CandidateRecipe } from '../lib/candidatePool'
 
-/**
- * Helper function to get a fallback recipe when no specific recipes are available
- * @param nonSoupRecipes Array of non-soup recipes
- * @param allRecipes Array of all recipes
- * @param currentIndex Current index in non-soup recipes
- * @param useRandom If true, use random selection from all recipes; if false, use first recipe
- * @returns Object with the selected recipe and the next index
- */
-type FallbackRecipeResult = {
-  recipe: { title: string; url: string; source?: string }
-  nextIndex: number
-}
-
-function getFallbackRecipe(
-  nonSoupRecipes: CandidateRecipe[],
-  allRecipes: CandidateRecipe[],
-  currentIndex: number,
-  useRandom: boolean = false
-): FallbackRecipeResult {
-  // First, try to use non-soup recipes sequentially
-  if (currentIndex < nonSoupRecipes.length) {
-    return {
-      recipe: nonSoupRecipes[currentIndex],
-      nextIndex: currentIndex + 1
-    }
-  }
-  
-  // If we run out of non-soup recipes, fallback to all recipes
-  if (allRecipes.length > 0) {
-    const selectedRecipe = useRandom 
-      ? allRecipes[Math.floor(Math.random() * allRecipes.length)]
-      : allRecipes[0]
-    return {
-      recipe: selectedRecipe,
-      nextIndex: currentIndex
-    }
-  }
-  
-  // If no recipes at all, create a placeholder
-  return {
-    recipe: { title: 'レシピなし', url: 'https://example.com' },
-    nextIndex: currentIndex
-  }
+interface IngredientItem {
+  name: string
+  isMust: boolean
 }
 
 function Main() {
@@ -57,6 +17,8 @@ function Main() {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
   const [poolWarning, setPoolWarning] = useState<string>('')
   const [isLoadingPool, setIsLoadingPool] = useState<boolean>(false)
+  const [ingredientInput, setIngredientInput] = useState<string>('')
+  const [ingredientWarning, setIngredientWarning] = useState<string>('')
   const statusTimeoutRef = useRef<number | null>(null)
 
   // Load candidate pool on mount
@@ -101,11 +63,83 @@ function Main() {
     loadPool(true)
   }
 
-  // Generate menu data from candidate pool
+  // Parse ingredient input into structured format
+  // Format: "ingredient" or "ingredient*" for must (max 2 must items)
+  const parseIngredientInput = (input: string): IngredientItem[] => {
+    const lines = input.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+    
+    const ingredients: IngredientItem[] = []
+    let mustCount = 0
+
+    lines.forEach(line => {
+      const isMust = line.endsWith('*')
+      const name = isMust ? line.slice(0, -1).trim() : line
+      
+      if (name.length > 0) {
+        if (isMust) {
+          if (mustCount < 2) {
+            ingredients.push({ name, isMust: true })
+            mustCount++
+          } else {
+            // Treat as normal ingredient if already have 2 musts
+            ingredients.push({ name, isMust: false })
+          }
+        } else {
+          ingredients.push({ name, isMust: false })
+        }
+      }
+    })
+
+    return ingredients
+  }
+
+  // Calculate match score for a recipe based on ingredients
+  const calculateRecipeScore = (
+    recipe: CandidateRecipe,
+    ingredients: IngredientItem[],
+    isRinaty: boolean
+  ): number => {
+    let score = 0
+    const titleLower = recipe.title.toLowerCase()
+    
+    // Check each ingredient
+    ingredients.forEach(ingredient => {
+      const ingredientLower = ingredient.name.toLowerCase()
+      if (titleLower.includes(ingredientLower)) {
+        if (ingredient.isMust) {
+          score += 1000 // Large bonus for must ingredients
+        } else {
+          score += 100 // Medium bonus for regular ingredients
+        }
+      }
+    })
+
+    // Small bonus for Rinaty recipes as tiebreaker (Q3 in Sprint 02)
+    if (isRinaty) {
+      score += 10
+    }
+
+    return score
+  }
+
+  // Generate menu data from candidate pool with ingredient scoring
   const generateMenu = () => {
     if (candidateRecipes.length === 0) {
       setCopyStatus('候補プールが読み込まれていません')
       return
+    }
+
+    // Parse ingredient input
+    const ingredients = parseIngredientInput(ingredientInput)
+    const mustIngredients = ingredients.filter(i => i.isMust)
+    
+    // Validate must ingredient count
+    if (mustIngredients.length > 2) {
+      setIngredientWarning('必須食材は最大2つまでです。最初の2つのみ必須として扱います。')
+    } else {
+      setIngredientWarning('')
     }
 
     const slots: MenuSlot[] = [
@@ -125,23 +159,70 @@ function Main() {
     const wednesdayRecipes = settings?.wednesdayRecipes || []
     const fridaySoupRecipes = settings?.fridaySoupRecipes || []
 
-    // Filter soup recipes from candidate pool
+    // Filter and score recipes
     const allRecipes = [...candidateRecipes]
     const soupRecipes = allRecipes.filter(recipe => isSoupRecipe(recipe.title))
     const nonSoupRecipes = allRecipes.filter(recipe => !isSoupRecipe(recipe.title))
 
-    // Fill with placeholder data
-    let nonSoupIndex = 0
+    // Score all recipes based on ingredients
+    const scoredRecipes = allRecipes.map(recipe => ({
+      recipe,
+      score: calculateRecipeScore(
+        recipe,
+        ingredients,
+        recipe.author === 'りなてぃ'
+      )
+    }))
+
+    // Sort by score (highest first)
+    scoredRecipes.sort((a, b) => b.score - a.score)
+
+    // Track which recipes have been used to avoid duplicates when possible
+    const usedRecipeUrls = new Set<string>()
+
+    // Helper to select best available recipe from a pool
+    const selectBestRecipe = (
+      pool: CandidateRecipe[],
+      allowDuplicates: boolean = false
+    ): CandidateRecipe | null => {
+      // Score and sort the pool
+      const scored = pool.map(recipe => ({
+        recipe,
+        score: calculateRecipeScore(recipe, ingredients, recipe.author === 'りなてぃ')
+      }))
+      scored.sort((a, b) => b.score - a.score)
+
+      // Find first unused recipe if avoiding duplicates
+      if (!allowDuplicates) {
+        for (const item of scored) {
+          if (!usedRecipeUrls.has(item.recipe.url)) {
+            usedRecipeUrls.add(item.recipe.url)
+            return item.recipe
+          }
+        }
+      }
+
+      // If all used or duplicates allowed, return best scored
+      if (scored.length > 0) {
+        const selected = scored[0].recipe
+        usedRecipeUrls.add(selected.url)
+        return selected
+      }
+
+      return null
+    }
+
+    // Fill slots with recipes
     slots.forEach((slot) => {
-      // Special handling for Wednesday night (水曜夜)
+      // Special handling for Wednesday night (水曜夜) - use settings
       if (slot.day === '水' && slot.mealTime === '夜' && wednesdayRecipes.length > 0) {
-        // Randomly select one recipe from Wednesday candidates
         const randomIndex = Math.floor(Math.random() * wednesdayRecipes.length)
         const selectedRecipe = wednesdayRecipes[randomIndex]
         slot.items = [{
           title: selectedRecipe.title,
           url: selectedRecipe.url
         }]
+        usedRecipeUrls.add(selectedRecipe.url)
       } 
       // Special handling for Friday night (金曜夜) - prioritize soup
       else if (slot.day === '金' && slot.mealTime === '夜') {
@@ -154,27 +235,58 @@ function Main() {
             url: selectedRecipe.url
           }]
           slot.isSoup = true
+          usedRecipeUrls.add(selectedRecipe.url)
         }
-        // If no Friday soup recipes configured, try to find soup from placeholders
+        // Try to find best soup from candidate pool
         else if (soupRecipes.length > 0) {
-          const randomIndex = Math.floor(Math.random() * soupRecipes.length)
-          slot.items = [soupRecipes[randomIndex]]
-          slot.isSoup = true
+          const selected = selectBestRecipe(soupRecipes, false)
+          if (selected) {
+            slot.items = [selected]
+            slot.isSoup = true
+          } else {
+            // Fallback to any soup even if duplicate
+            const fallbackSoup = soupRecipes[0]
+            slot.items = [fallbackSoup]
+            slot.isSoup = true
+            usedRecipeUrls.add(fallbackSoup.url)
+          }
         } 
-        // If no soup candidates available, use non-soup recipe with warning
+        // If no soup candidates available, use best non-soup with warning
         else {
-          const fallback = getFallbackRecipe(nonSoupRecipes, allRecipes, nonSoupIndex, false)
-          slot.items = [fallback.recipe]
-          nonSoupIndex = fallback.nextIndex
+          const selected = selectBestRecipe(nonSoupRecipes, true)
+          if (selected) {
+            slot.items = [selected]
+          } else {
+            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
+          }
           slot.warning = '要確認（スープ候補不足）'
           slot.isSoup = false
         }
       } 
-      // Use non-soup recipes for other slots
+      // Use best non-soup recipes for other slots
       else {
-        const fallback = getFallbackRecipe(nonSoupRecipes, allRecipes, nonSoupIndex, true)
-        slot.items = [fallback.recipe]
-        nonSoupIndex = fallback.nextIndex
+        const selected = selectBestRecipe(nonSoupRecipes, false)
+        if (selected) {
+          slot.items = [selected]
+        } else {
+          // Allow duplicates if we run out of unique recipes
+          const fallback = selectBestRecipe(allRecipes, true)
+          if (fallback) {
+            slot.items = [fallback]
+          } else {
+            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
+          }
+        }
+      }
+    })
+
+    // Check if must ingredients were satisfied
+    const allSelectedTitles = slots.map(s => s.items.map(i => i.title)).flat().join(' ').toLowerCase()
+    mustIngredients.forEach(ingredient => {
+      if (!allSelectedTitles.includes(ingredient.name.toLowerCase())) {
+        setIngredientWarning(prev => 
+          (prev ? prev + '\n' : '') + `必須食材「${ingredient.name}」を含む候補が見つかりませんでした。`
+        )
       }
     })
 
@@ -247,6 +359,26 @@ function Main() {
           ⚠️ {poolWarning}
         </div>
       )}
+
+      <div className="ingredient-pool-section">
+        <h2>食材プール（任意）</h2>
+        <p className="ingredient-description">
+          冷蔵庫にある食材を入力すると、それらを使うレシピを優先的に選びます。
+          1行に1食材を入力してください。必須にしたい食材（最大2つ）は末尾に「*」を付けてください。
+        </p>
+        <textarea
+          className="ingredient-input"
+          rows={6}
+          placeholder="例：&#10;白菜*&#10;豚肉&#10;にんじん&#10;&#10;（*付きは必須食材、最大2つまで）"
+          value={ingredientInput}
+          onChange={(e) => setIngredientInput(e.target.value)}
+        />
+        {ingredientWarning && (
+          <div className="ingredient-warning" role="alert">
+            ⚠️ {ingredientWarning}
+          </div>
+        )}
+      </div>
       
       <div className="action-buttons">
         <button 
