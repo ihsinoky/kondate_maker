@@ -62,7 +62,7 @@ function getBasePath(): string {
  */
 async function fetchCandidatePool(): Promise<CandidateRecipe[]> {
   const basePath = getBasePath()
-  const url = basePath.endsWith('/') ? `${basePath}candidate_pool.json` : `${basePath}/candidate_pool.json`
+  const url = `${basePath}candidate_pool.json`
   
   try {
     const response = await fetch(url)
