@@ -120,6 +120,53 @@ p {
   flex-wrap: wrap;
 }
 
+/* Pool status section */
+.pool-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pool-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pool-info span {
+  font-size: 0.95rem;
+}
+
+.pool-timestamp {
+  color: #888;
+  font-size: 0.875rem;
+}
+
+.btn-reload {
+  background-color: #ff9800;
+  color: white;
+}
+
+.btn-reload:hover:not(:disabled) {
+  background-color: #f57c00;
+}
+
+.pool-warning {
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background-color: #ff9800;
+  color: white;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
 .copy-status {
   padding: 0.75rem;
   margin-bottom: 1rem;
@@ -464,6 +511,16 @@ p {
   }
 
   .future-settings {
+    color: #666;
+  }
+
+  /* Pool status light mode */
+  .pool-status {
+    background-color: #f5f5f5;
+    border-color: #ddd;
+  }
+
+  .pool-timestamp {
     color: #666;
   }
 }
