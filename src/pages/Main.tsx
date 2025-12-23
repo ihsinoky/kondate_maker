@@ -252,9 +252,9 @@ function Main() {
         <button 
           onClick={generateMenu} 
           className="btn btn-primary"
-          disabled={candidateRecipes.length === 0 || isLoadingPool}
+          disabled={candidateRecipes.length === 0}
         >
-          {isLoadingPool ? '候補読み込み中...' : '献立を作る'}
+          献立を作る
         </button>
         <button 
           onClick={handleCopyToClipboard} 
