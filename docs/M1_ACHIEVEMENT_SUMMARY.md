@@ -192,13 +192,14 @@ From `docs/MILESTONES.md`:
 ## Files Changed
 
 ```
-docs/M1_VALIDATION.md      +398  (new file)
-docs/MANUAL_TEST_GUIDE.md  +310  (new file)
-docs/BACKLOG.md            +47 -34
-docs/MILESTONES.md         +15 -5
+docs/M1_VALIDATION.md          +402  (new file)
+docs/MANUAL_TEST_GUIDE.md      +420  (new file)
+docs/M1_ACHIEVEMENT_SUMMARY.md +244  (new file)
+docs/BACKLOG.md                +47 -34
+docs/MILESTONES.md             +15 -5
 ```
 
-**Total**: 2 new files, 2 updated files, 770 lines added
+**Total**: 3 new files, 2 updated files, 1,128 lines added
 
 ---
 
