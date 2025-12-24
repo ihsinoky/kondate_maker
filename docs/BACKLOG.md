@@ -8,54 +8,53 @@
 - 金曜夜：スープ優先（候補不足警告）
 - 買い出しリスト領域：未対応表示
 
-## Done（Sprint 2）
-- **P0-1: 方式Bの実行場所を確定し、候補プール生成の基盤を作る**
-  - 当初はGitHub Actions自動スクレイピング方式で実装
-  - WAF/自動化検出により失敗が頻発したため、Bookmarklet方式に移行
-  - 参照: `docs/legacy/CANDIDATE_POOL_EXECUTION.md`（旧方式の記録）
-  - **現行方式**: Bookmarklet → `data/candidate_inbox/` → 自動マージ
-  - 参照: `docs/bookmarklet/README.md`
+## Done（Sprint 2 - M1 ACHIEVED ✅）
 
----
+**M1 (v0.2) 達成日**: 2025-12-24  
+**検証**: `docs/M1_VALIDATION.md` 参照
 
-## P0（Sprint 2：M1達成に直結）
 ### Epic A：外部ソースから候補URLを取得し、9枠を埋める
 
-**前提**: すべてのP0タスクは `docs/sprints/SPRINT_02.md` の「決定事項（Q2〜Q5）」に従う
-
-0. **Q2〜Q5決定事項の確定＆docs整合（P0-0）**
+0. **✅ Q2〜Q5決定事項の確定＆docs整合（P0-0）**
    - Sprint2の仕様・用語・運用前提を確定し、Docsへ反映
-   - 受け入れ条件：Q2〜Q5がDocsに反映され、Sprint2開始時点で仕様の一次ソースが明確
    - 参照：`docs/sprints/SPRINT_02.md` セクション0
 
-1. **各サイトのURL候補取得（方式B）の実装方針を確定（P0-1）**
-   - 前提：P0-0の決定事項（特にQ2: 週1回手動更新前提）
-   - 技術的論点：クライアント直fetchだとCORS/取得不可の可能性があるため、取得・解析を「サーバー側（API/Function）」「ビルド時」「GitHub Actionsで生成」など、どこで行うかを決める
-   - 受け入れ条件：方式が1つに決まり、実装の入口（モジュールやAPI）が決まっている
+1. **✅ 方式Bの実行場所を確定し、候補プール生成の基盤を作る（P0-1）**
+   - 当初はGitHub Actions自動スクレイピング方式で実装
+   - WAF/自動化検出により失敗が頻発したため、Bookmarklet方式に移行
+   - 参照: `docs/legacy/CANDIDATE_POOL_EXECUTION.md`（旧方式の記録）
+   - **現行方式**: Bookmarklet → `data/candidate_inbox/` → 自動マージ
+   - 参照: `docs/bookmarklet/README.md`
 
-2. **候補収集基盤の確立（P0-2）**（完了→Bookmarklet方式へ移行済み）
+2. **✅ 候補収集基盤の確立（P0-2）**
    - 当初はNadia自動スクレイパーを実装（2025-12-19完了）
    - WAF/自動化検出により失敗が頻発したため、Bookmarklet方式に切り替え（2025-12-22）
    - Bookmarklet方式により安定的な候補収集を実現
    - 出力：`[{ title, url, source, timeText?, tags? }]`
    - 参照: `docs/legacy/P0-2_COMPLETION_SUMMARY.md`（旧実装の記録）
-   - **現行**: Bookmarkletで手動収集し、`data/candidate_inbox/` 経由でマージ
 
-3. **複数ソースからの候補取得（P0-3/P0-4）**（保留）
+3. **✅ 複数ソースからの候補取得（P0-3/P0-4）**
    - つくおき、白ごはん.comなど複数ソースからの候補収集
-   - 現在はBookmarklet方式で各サイトから手動収集可能
+   - Bookmarklet方式で各サイトから手動収集可能
+   - 現在の候補プール: 28件（Nadia中心）
    - 自動化は将来的な検討課題（公式API提供があれば再検討）
-   - 参照：Q4の食材プール用語統一
 
-4. **候補プールのキャッシュ（P0-5）**
-   - 前提：P0-0の決定事項（Q2: 週1回手動更新、Q5: キャッシュOK）
-   - 目的：外部アクセス回数を減らし、iPhoneでの体験を安定化
-   - 受け入れ条件：候補取得が毎回フル実行されず、再生成が速い
+4. **✅ 候補プールのキャッシュ（P0-5）**
+   - 実装: `src/lib/candidatePool.ts`
+   - 三層キャッシュ戦略: cache → network → fallback
+   - 手動リロード導線: "候補を再読み込み" ボタン
+   - タイムスタンプ表示: "最終取得: YYYY/MM/DD HH:MM"
 
-5. **9枠の自動埋め込み（実在URL）（P0-6）**
-   - 前提：P0-0の決定事項（Q3: りなてぃ優先度、Q4: must食材最大2つまで）
-   - 受け入れ条件：水曜鯖・金曜スープのルールを守りつつ、残り枠が実在URLで埋まる
-   - 候補不足時：落ちない（警告表示・フォールバック）
+5. **✅ 9枠の自動埋め込み（実在URL）（P0-6）**
+   - 実装: `src/pages/Main.tsx` (`generateMenu`)
+   - 食材プール入力（任意、must最大2つ）
+   - 水曜鯖・金曜スープのルール遵守
+   - 候補不足時：警告表示・フォールバック（落ちない）
+   - Notionコピー機能
+
+---
+
+## P0（Sprint 2：完了）
 
 ---
 
