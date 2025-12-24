@@ -239,6 +239,6 @@ The tracking issue #36 can be closed after this PR is merged, with reference to:
 
 ---
 
-**Prepared by**: GitHub Copilot  
-**Date**: 2025-12-24  
-**PR**: copilot/fill-9-frames-with-actual-urls
+**Document Date**: 2025-12-24  
+**Related PR**: copilot/fill-9-frames-with-actual-urls  
+**Tracking Issue**: #36
