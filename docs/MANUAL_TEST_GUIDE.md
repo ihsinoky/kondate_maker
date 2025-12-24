@@ -58,7 +58,7 @@ This guide provides step-by-step instructions for manually testing all M1 featur
 - ✅ Each card shows a recipe title
 - ✅ Each card has a "レシピを見る" link
 - ✅ Links are real URLs (not placeholders)
-- ✅ Water (水) night may show different recipe than others
+- ✅ Wednesday (水) night may show different recipe than others
 - ✅ Friday (金) night may show 🍲 soup badge
 - ✅ No crash or error
 
