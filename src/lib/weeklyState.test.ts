@@ -24,7 +24,7 @@ const mockLocalStorage = (() => {
 })()
 
 // Replace global localStorage with mock
-global.localStorage = mockLocalStorage as any
+global.localStorage = mockLocalStorage as unknown as Storage
 
 import { 
   loadWeeklyState, 
