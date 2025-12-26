@@ -32,6 +32,8 @@ import {
   clearWeeklyState,
   updateMenuSlots,
   updateShoppingList,
+  getWeekKey,
+  getWeekStart,
   WeeklyState,
   ShoppingListItem
 } from './weeklyState'
@@ -43,12 +45,47 @@ interface TestCase {
 
 const testCases: TestCase[] = []
 
+// Test 0: Week key calculation
+testCases.push({
+  description: 'Calculate week key (Monday-based)',
+  test: () => {
+    // Test with a known date (Thursday, Dec 26, 2024)
+    const testDate = new Date('2024-12-26')
+    const weekStart = getWeekStart(testDate)
+    
+    // Thursday Dec 26 -> Monday Dec 23
+    if (weekStart.getDay() !== 1) {
+      throw new Error(`Expected Monday (1), got ${weekStart.getDay()}`)
+    }
+    
+    const weekKey = getWeekKey(testDate)
+    if (weekKey !== '2024-12-23') {
+      throw new Error(`Expected '2024-12-23', got '${weekKey}'`)
+    }
+    
+    // Test with Sunday (should go to previous Monday)
+    const sunday = new Date('2024-12-29') // Sunday
+    const sundayWeekKey = getWeekKey(sunday)
+    if (sundayWeekKey !== '2024-12-23') {
+      throw new Error(`Expected Sunday to map to '2024-12-23', got '${sundayWeekKey}'`)
+    }
+    
+    // Test with Monday itself
+    const monday = new Date('2024-12-23') // Monday
+    const mondayWeekKey = getWeekKey(monday)
+    if (mondayWeekKey !== '2024-12-23') {
+      throw new Error(`Expected Monday to map to '2024-12-23', got '${mondayWeekKey}'`)
+    }
+  }
+})
+
 // Test 1: Save and load weekly state
 testCases.push({
   description: 'Save and load weekly state',
   test: () => {
     mockLocalStorage.clear()
     
+    const weekKey = getWeekKey()
     const menuSlots: MenuSlot[] = [
       {
         day: '土',
@@ -72,6 +109,8 @@ testCases.push({
     ]
     
     const state: WeeklyState = {
+      schemaVersion: 1,
+      weekKey,
       menuSlots,
       shoppingList,
       lastUpdated: new Date().toISOString()
@@ -82,6 +121,14 @@ testCases.push({
     
     if (!loaded) {
       throw new Error('Failed to load state')
+    }
+    
+    if (loaded.schemaVersion !== 1) {
+      throw new Error(`Expected schema version 1, got ${loaded.schemaVersion}`)
+    }
+    
+    if (loaded.weekKey !== weekKey) {
+      throw new Error(`Expected weekKey '${weekKey}', got '${loaded.weekKey}'`)
     }
     
     if (loaded.menuSlots.length !== 2) {
@@ -126,7 +173,10 @@ testCases.push({
   test: () => {
     mockLocalStorage.clear()
     
+    const weekKey = getWeekKey()
     const state: WeeklyState = {
+      schemaVersion: 1,
+      weekKey,
       menuSlots: [],
       shoppingList: [],
       lastUpdated: new Date().toISOString()

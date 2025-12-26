@@ -5,7 +5,7 @@ import { loadSettings } from '../lib/settings'
 import { isSoupRecipe } from '../lib/soupDetector'
 import { loadCandidatePool, formatTimestamp, CandidateRecipe } from '../lib/candidatePool'
 import { estimateMainIngredient, getAllMainIngredients, MainIngredient } from '../lib/mainIngredientEstimator'
-import { loadWeeklyState, updateMenuSlots, updateShoppingList, ShoppingListItem } from '../lib/weeklyState'
+import { loadWeeklyState, updateMenuSlots, updateShoppingList, clearWeeklyState, ShoppingListItem } from '../lib/weeklyState'
 
 const RINATY_AUTHOR_NAME = 'りなてぃ'
 
@@ -26,6 +26,7 @@ function Main() {
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([])
   const [shoppingListInput, setShoppingListInput] = useState<string>('')
   const [shoppingCopyStatus, setShoppingCopyStatus] = useState<string>('')
+  const [dataWarning, setDataWarning] = useState<string>('')
   const statusTimeoutRef = useRef<number | null>(null)
   const shoppingStatusTimeoutRef = useRef<number | null>(null)
   const isInitialMountMenuSlots = useRef<boolean>(true)
@@ -37,11 +38,16 @@ function Main() {
     loadPool(false)
     
     // Load saved weekly state
-    const savedState = loadWeeklyState()
-    if (savedState && savedState.menuSlots.length > 0) {
-      setMenuSlots(savedState.menuSlots)
-      setShoppingList(savedState.shoppingList)
-      console.log('Loaded saved weekly state:', savedState.menuSlots.length, 'slots')
+    try {
+      const savedState = loadWeeklyState()
+      if (savedState && savedState.menuSlots.length > 0) {
+        setMenuSlots(savedState.menuSlots)
+        setShoppingList(savedState.shoppingList)
+        console.log('Loaded saved weekly state:', savedState.menuSlots.length, 'slots')
+      }
+    } catch (error) {
+      console.error('Failed to load weekly state:', error)
+      setDataWarning('保存データの読み込みに失敗しました。データが破損している可能性があります。')
     }
   }, [])
 
@@ -645,6 +651,35 @@ function Main() {
     shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
   }
 
+  // Reset this week's state
+  const handleResetWeek = () => {
+    if (!confirm('今週の献立と買い物リストをリセットしますか？\nこの操作は取り消せません。')) {
+      return
+    }
+    
+    try {
+      clearWeeklyState()
+      setMenuSlots([])
+      setShoppingList([])
+      setIngredientInput('')
+      setShoppingListInput('')
+      setCopyStatus('今週の状態をリセットしました')
+      
+      // Clear copy status after 3 seconds
+      if (statusTimeoutRef.current !== null) {
+        clearTimeout(statusTimeoutRef.current)
+      }
+      statusTimeoutRef.current = window.setTimeout(() => setCopyStatus(''), 3000)
+    } catch (error) {
+      console.error('Failed to reset week:', error)
+      setCopyStatus('リセットに失敗しました')
+      if (statusTimeoutRef.current !== null) {
+        clearTimeout(statusTimeoutRef.current)
+      }
+      statusTimeoutRef.current = window.setTimeout(() => setCopyStatus(''), 3000)
+    }
+  }
+
   return (
     <div className="main-page">
       <h1>献立メーカー</h1>
@@ -668,6 +703,12 @@ function Main() {
       {poolWarning && (
         <div className="pool-warning" role="alert">
           ⚠️ {poolWarning}
+        </div>
+      )}
+
+      {dataWarning && (
+        <div className="pool-warning" role="alert">
+          ⚠️ {dataWarning}
         </div>
       )}
 
@@ -712,6 +753,14 @@ function Main() {
           disabled={menuSlots.length === 0}
         >
           Notionに貼る用にコピー
+        </button>
+        <button 
+          onClick={handleResetWeek} 
+          className="btn btn-danger"
+          disabled={menuSlots.length === 0 && shoppingList.length === 0}
+          title="今週の献立と買い物リストをリセット"
+        >
+          今週をリセット
         </button>
       </div>
 
