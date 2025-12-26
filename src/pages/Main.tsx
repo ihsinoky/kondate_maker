@@ -28,6 +28,8 @@ function Main() {
   const [shoppingCopyStatus, setShoppingCopyStatus] = useState<string>('')
   const statusTimeoutRef = useRef<number | null>(null)
   const shoppingStatusTimeoutRef = useRef<number | null>(null)
+  const isInitialMount = useRef<boolean>(true)
+  const shoppingListIdCounter = useRef<number>(0)
 
   // Load candidate pool and weekly state on mount
   useEffect(() => {
@@ -56,6 +58,10 @@ function Main() {
 
   // Auto-save menu slots when they change
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
     if (menuSlots.length > 0) {
       updateMenuSlots(menuSlots)
     }
@@ -63,9 +69,10 @@ function Main() {
 
   // Auto-save shopping list when it changes
   useEffect(() => {
-    if (shoppingList.length > 0) {
-      updateShoppingList(shoppingList)
+    if (isInitialMount.current) {
+      return
     }
+    updateShoppingList(shoppingList)
   }, [shoppingList])
 
   // Load candidate pool from cache or network
@@ -536,39 +543,52 @@ function Main() {
       return
     }
 
-    // Count main ingredients
-    const ingredientCounts = new Map<string, number>()
-    menuSlots.forEach(slot => {
-      if (slot.mainIngredient && slot.mainIngredient !== 'その他') {
-        const count = ingredientCounts.get(slot.mainIngredient) || 0
-        ingredientCounts.set(slot.mainIngredient, count + 1)
-      }
-    })
-
-    // Convert to shopping list items
-    const items: ShoppingListItem[] = []
-    ingredientCounts.forEach((count, ingredient) => {
-      items.push({
-        id: `${ingredient}-${Date.now()}`,
-        ingredient: `${ingredient}（${count}食分）`,
-        checked: false
+    setShoppingList(prevItems => {
+      // Preserve checked state by ingredient text
+      const prevCheckedByIngredient = new Map<string, boolean>()
+      prevItems.forEach(item => {
+        prevCheckedByIngredient.set(item.ingredient, item.checked)
       })
+
+      // Count main ingredients
+      const ingredientCounts = new Map<string, number>()
+      menuSlots.forEach(slot => {
+        if (slot.mainIngredient && slot.mainIngredient !== 'その他') {
+          const count = ingredientCounts.get(slot.mainIngredient) || 0
+          ingredientCounts.set(slot.mainIngredient, count + 1)
+        }
+      })
+
+      // Convert to shopping list items
+      const items: ShoppingListItem[] = []
+      ingredientCounts.forEach((count, ingredient) => {
+        const ingredientText = `${ingredient}（${count}食分）`
+        const prevChecked = prevCheckedByIngredient.get(ingredientText) ?? false
+        items.push({
+          id: `${ingredient}-${++shoppingListIdCounter.current}`,
+          ingredient: ingredientText,
+          checked: prevChecked
+        })
+      })
+
+      // Add custom items from input if any
+      if (shoppingListInput.trim()) {
+        const customItems = shoppingListInput.split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => {
+            const prevChecked = prevCheckedByIngredient.get(line) ?? false
+            return {
+              id: `custom-${++shoppingListIdCounter.current}`,
+              ingredient: line,
+              checked: prevChecked
+            }
+          })
+        items.push(...customItems)
+      }
+
+      return items
     })
-
-    // Add custom items from input if any
-    if (shoppingListInput.trim()) {
-      const customItems = shoppingListInput.split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .map(line => ({
-          id: `custom-${line}-${Date.now()}`,
-          ingredient: line,
-          checked: false
-        }))
-      items.push(...customItems)
-    }
-
-    setShoppingList(items)
   }
 
   // Toggle shopping list item checked status
@@ -702,6 +722,7 @@ function Main() {
                 onClick={() => handleToggleLock(index)}
                 className="btn-lock"
                 title={slot.isLocked ? 'ロック解除' : 'ロック'}
+                aria-label={slot.isLocked ? '献立をロック解除' : '献立をロック'}
               >
                 {slot.isLocked ? '🔒' : '🔓'}
               </button>
@@ -715,8 +736,9 @@ function Main() {
               
               {/* Main ingredient display and edit */}
               <div className="main-ingredient-section">
-                <label className="main-ingredient-label">主材料:</label>
+                <label htmlFor={`main-ingredient-${index}`} className="main-ingredient-label">主材料:</label>
                 <select
+                  id={`main-ingredient-${index}`}
                   className="main-ingredient-select"
                   value={slot.mainIngredient || 'その他'}
                   onChange={(e) => handleUpdateMainIngredient(index, e.target.value as MainIngredient)}
@@ -767,6 +789,7 @@ function Main() {
             className="shopping-input"
             rows={4}
             placeholder="追加する食材を入力（1行に1つ）"
+            aria-label="買い出しリストに追加する食材"
             value={shoppingListInput}
             onChange={(e) => setShoppingListInput(e.target.value)}
           />
@@ -789,6 +812,7 @@ function Main() {
                     checked={item.checked}
                     onChange={() => handleToggleShoppingItem(item.id)}
                     className="shopping-checkbox"
+                    aria-label={item.ingredient}
                   />
                   <span className={`shopping-ingredient ${item.checked ? 'checked' : ''}`}>
                     {item.ingredient}
@@ -797,6 +821,7 @@ function Main() {
                     onClick={() => handleRemoveShoppingItem(item.id)}
                     className="btn-remove"
                     title="削除"
+                    aria-label={`${item.ingredient}を削除`}
                   >
                     ✕
                   </button>

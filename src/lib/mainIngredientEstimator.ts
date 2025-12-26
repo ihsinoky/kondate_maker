@@ -20,8 +20,19 @@ export type MainIngredient =
 /**
  * Keywords for detecting main ingredients in recipe titles
  * Order matters - more specific terms should come first
+ * ひき肉 is checked before specific meat types to handle dishes like '豚ひき肉のハンバーグ'
  */
 const INGREDIENT_PATTERNS: { ingredient: MainIngredient; keywords: string[] }[] = [
+  {
+    ingredient: 'ひき肉',
+    keywords: [
+      'ひき肉', 'ひきにく', '挽肉', '挽き肉', 'ミンチ', '肉だね', '肉団子',
+      'ハンバーグ', 'はんばーぐ',
+      'ミートソース', 'ミートボール',
+      '麻婆', 'マーボー',
+      '豚ひき', '鶏ひき', '牛ひき',
+    ],
+  },
   {
     ingredient: '豚肉',
     keywords: ['豚', '豚肉', 'ポーク', '豚バラ', '豚ロース', '豚こま'],
@@ -33,15 +44,6 @@ const INGREDIENT_PATTERNS: { ingredient: MainIngredient; keywords: string[] }[] 
   {
     ingredient: '牛肉',
     keywords: ['牛', '牛肉', 'ビーフ', '牛バラ', '牛ロース', '牛こま'],
-  },
-  {
-    ingredient: 'ひき肉',
-    keywords: [
-      'ひき肉', 'ひきにく', '挽肉', '挽き肉', 'ミンチ', '肉だね', '肉団子',
-      'ハンバーグ', 'はんばーぐ',
-      'ミートソース', 'ミートボール',
-      '麻婆', 'マーボー',
-    ],
   },
   {
     ingredient: '魚',
