@@ -24,15 +24,15 @@ export type MainIngredient =
 const INGREDIENT_PATTERNS: { ingredient: MainIngredient; keywords: string[] }[] = [
   {
     ingredient: '豚肉',
-    keywords: ['豚', '豚肉', 'ポーク', '豚バラ', '豚ロース', '豚こま', '豚ひき肉は除外'],
+    keywords: ['豚', '豚肉', 'ポーク', '豚バラ', '豚ロース', '豚こま'],
   },
   {
     ingredient: '鶏肉',
-    keywords: ['鶏', '鶏肉', 'チキン', '鶏もも', '鶏むね', '鶏ささみ', '手羽', '鶏ひき肉は除外'],
+    keywords: ['鶏', '鶏肉', 'チキン', '鶏もも', '鶏むね', '鶏ささみ', '手羽'],
   },
   {
     ingredient: '牛肉',
-    keywords: ['牛', '牛肉', 'ビーフ', '牛バラ', '牛ロース', '牛こま', '牛ひき肉は除外'],
+    keywords: ['牛', '牛肉', 'ビーフ', '牛バラ', '牛ロース', '牛こま'],
   },
   {
     ingredient: 'ひき肉',
