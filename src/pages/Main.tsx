@@ -4,6 +4,8 @@ import { copyToClipboard } from '../lib/clipboard'
 import { loadSettings } from '../lib/settings'
 import { isSoupRecipe } from '../lib/soupDetector'
 import { loadCandidatePool, formatTimestamp, CandidateRecipe } from '../lib/candidatePool'
+import { estimateMainIngredient, getAllMainIngredients, MainIngredient } from '../lib/mainIngredientEstimator'
+import { loadWeeklyState, updateMenuSlots, updateShoppingList, ShoppingListItem } from '../lib/weeklyState'
 
 const RINATY_AUTHOR_NAME = 'りなてぃ'
 
@@ -21,11 +23,26 @@ function Main() {
   const [isLoadingPool, setIsLoadingPool] = useState<boolean>(false)
   const [ingredientInput, setIngredientInput] = useState<string>('')
   const [ingredientWarning, setIngredientWarning] = useState<string>('')
+  const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([])
+  const [shoppingListInput, setShoppingListInput] = useState<string>('')
+  const [shoppingCopyStatus, setShoppingCopyStatus] = useState<string>('')
   const statusTimeoutRef = useRef<number | null>(null)
+  const shoppingStatusTimeoutRef = useRef<number | null>(null)
+  const isInitialMountMenuSlots = useRef<boolean>(true)
+  const isInitialMountShoppingList = useRef<boolean>(true)
+  const shoppingListIdCounter = useRef<number>(0)
 
-  // Load candidate pool on mount
+  // Load candidate pool and weekly state on mount
   useEffect(() => {
     loadPool(false)
+    
+    // Load saved weekly state
+    const savedState = loadWeeklyState()
+    if (savedState && savedState.menuSlots.length > 0) {
+      setMenuSlots(savedState.menuSlots)
+      setShoppingList(savedState.shoppingList)
+      console.log('Loaded saved weekly state:', savedState.menuSlots.length, 'slots')
+    }
   }, [])
 
   // Clear timeout on unmount to prevent memory leaks
@@ -34,8 +51,39 @@ function Main() {
       if (statusTimeoutRef.current !== null) {
         clearTimeout(statusTimeoutRef.current)
       }
+      if (shoppingStatusTimeoutRef.current !== null) {
+        clearTimeout(shoppingStatusTimeoutRef.current)
+      }
     }
   }, [])
+
+  // Auto-save menu slots when they change
+  useEffect(() => {
+    if (isInitialMountMenuSlots.current) {
+      isInitialMountMenuSlots.current = false
+      return
+    }
+    if (menuSlots.length > 0) {
+      try {
+        updateMenuSlots(menuSlots)
+      } catch (error) {
+        console.error('Failed to auto-save menu slots:', error)
+      }
+    }
+  }, [menuSlots])
+
+  // Auto-save shopping list when it changes
+  useEffect(() => {
+    if (isInitialMountShoppingList.current) {
+      isInitialMountShoppingList.current = false
+      return
+    }
+    try {
+      updateShoppingList(shoppingList)
+    } catch (error) {
+      console.error('Failed to auto-save shopping list:', error)
+    }
+  }, [shoppingList])
 
   // Load candidate pool from cache or network
   const loadPool = async (forceReload: boolean) => {
@@ -129,6 +177,140 @@ function Main() {
     return score
   }
 
+  // Helper to fill a single slot with a recipe
+  const fillSlot = (
+    slot: MenuSlot,
+    usedRecipeUrls: Set<string>,
+    recipeScores: Map<string, number>,
+    mainIngredientFilter?: MainIngredient
+  ): void => {
+    const settings = loadSettings()
+    const wednesdayRecipes = settings?.wednesdayRecipes || []
+    const fridaySoupRecipes = settings?.fridaySoupRecipes || []
+
+    const allRecipes = [...candidateRecipes]
+    const soupRecipes = allRecipes.filter(recipe => isSoupRecipe(recipe.title))
+    const nonSoupRecipes = allRecipes.filter(recipe => !isSoupRecipe(recipe.title))
+
+    // Helper to select best available recipe from a pool
+    const selectBestRecipe = (
+      pool: CandidateRecipe[],
+      allowDuplicates: boolean = false
+    ): CandidateRecipe | null => {
+      // Apply main ingredient filter if provided
+      let filteredPool = pool
+      if (mainIngredientFilter && mainIngredientFilter !== 'その他') {
+        filteredPool = pool.filter(recipe => 
+          estimateMainIngredient(recipe.title) === mainIngredientFilter
+        )
+        // If no matches with filter, fall back to full pool
+        if (filteredPool.length === 0) {
+          filteredPool = pool
+        }
+      }
+
+      // Sort pool by pre-calculated scores
+      const sorted = [...filteredPool].sort((a, b) => {
+        const scoreA = recipeScores.get(a.url) || 0
+        const scoreB = recipeScores.get(b.url) || 0
+        return scoreB - scoreA
+      })
+
+      // Find first unused recipe if avoiding duplicates
+      if (!allowDuplicates) {
+        for (const recipe of sorted) {
+          if (!usedRecipeUrls.has(recipe.url)) {
+            usedRecipeUrls.add(recipe.url)
+            return recipe
+          }
+        }
+      }
+
+      // If all used or duplicates allowed, return best scored
+      if (sorted.length > 0) {
+        const selected = sorted[0]
+        usedRecipeUrls.add(selected.url)
+        return selected
+      }
+
+      return null
+    }
+
+    // Special handling for Wednesday night (水曜夜) - use settings
+    if (slot.day === '水' && slot.mealTime === '夜' && wednesdayRecipes.length > 0) {
+      const randomIndex = Math.floor(Math.random() * wednesdayRecipes.length)
+      const selectedRecipe = wednesdayRecipes[randomIndex]
+      slot.items = [{
+        title: selectedRecipe.title,
+        url: selectedRecipe.url
+      }]
+      slot.mainIngredient = estimateMainIngredient(selectedRecipe.title)
+      usedRecipeUrls.add(selectedRecipe.url)
+    } 
+    // Special handling for Friday night (金曜夜) - prioritize soup
+    else if (slot.day === '金' && slot.mealTime === '夜') {
+      // First, try to use Friday soup recipes from settings
+      if (fridaySoupRecipes.length > 0) {
+        const randomIndex = Math.floor(Math.random() * fridaySoupRecipes.length)
+        const selectedRecipe = fridaySoupRecipes[randomIndex]
+        slot.items = [{
+          title: selectedRecipe.title,
+          url: selectedRecipe.url
+        }]
+        slot.isSoup = true
+        slot.mainIngredient = estimateMainIngredient(selectedRecipe.title)
+        usedRecipeUrls.add(selectedRecipe.url)
+      }
+      // Try to find best soup from candidate pool
+      else if (soupRecipes.length > 0) {
+        let selected = selectBestRecipe(soupRecipes, false)
+        if (!selected) {
+          // Allow duplicates if we have run out of unique soup recipes
+          selected = selectBestRecipe(soupRecipes, true)
+        }
+        if (selected) {
+          slot.items = [selected]
+          slot.isSoup = true
+          slot.mainIngredient = estimateMainIngredient(selected.title)
+        } else {
+          // As a final fallback, treat this as a soup candidate shortage
+          slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
+          slot.warning = '要確認（スープ候補不足）'
+          slot.isSoup = false
+        }
+      } 
+      // If no soup candidates available, use best non-soup with warning
+      else {
+        const selected = selectBestRecipe(nonSoupRecipes, true)
+        if (selected) {
+          slot.items = [selected]
+          slot.mainIngredient = estimateMainIngredient(selected.title)
+        } else {
+          slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
+        }
+        slot.warning = '要確認（スープ候補不足）'
+        slot.isSoup = false
+      }
+    } 
+    // Use best non-soup recipes for other slots
+    else {
+      const selected = selectBestRecipe(nonSoupRecipes, false)
+      if (selected) {
+        slot.items = [selected]
+        slot.mainIngredient = estimateMainIngredient(selected.title)
+      } else {
+        // Allow duplicates if we run out of unique recipes
+        const fallback = selectBestRecipe(allRecipes, true)
+        if (fallback) {
+          slot.items = [fallback]
+          slot.mainIngredient = estimateMainIngredient(fallback.title)
+        } else {
+          slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
+        }
+      }
+    }
+  }
+
   // Generate menu data from candidate pool with ingredient scoring
   const generateMenu = () => {
     if (candidateRecipes.length === 0) {
@@ -160,19 +342,9 @@ function Main() {
       { day: '金', mealTime: '夜', items: [] },
     ]
 
-    // Load settings to get Wednesday and Friday recipes
-    const settings = loadSettings()
-    const wednesdayRecipes = settings?.wednesdayRecipes || []
-    const fridaySoupRecipes = settings?.fridaySoupRecipes || []
-
-    // Filter and score recipes
-    const allRecipes = [...candidateRecipes]
-    const soupRecipes = allRecipes.filter(recipe => isSoupRecipe(recipe.title))
-    const nonSoupRecipes = allRecipes.filter(recipe => !isSoupRecipe(recipe.title))
-
-    // Pre-calculate scores for all recipes to avoid rescoring in selectBestRecipe
+    // Pre-calculate scores for all recipes
     const recipeScores = new Map<string, number>()
-    allRecipes.forEach(recipe => {
+    candidateRecipes.forEach(recipe => {
       const score = calculateRecipeScore(
         recipe,
         ingredients,
@@ -184,107 +356,9 @@ function Main() {
     // Track which recipes have been used to avoid duplicates when possible
     const usedRecipeUrls = new Set<string>()
 
-    // Helper to select best available recipe from a pool
-    const selectBestRecipe = (
-      pool: CandidateRecipe[],
-      allowDuplicates: boolean = false
-    ): CandidateRecipe | null => {
-      // Sort pool by pre-calculated scores
-      const sorted = [...pool].sort((a, b) => {
-        const scoreA = recipeScores.get(a.url) || 0
-        const scoreB = recipeScores.get(b.url) || 0
-        return scoreB - scoreA
-      })
-
-      // Find first unused recipe if avoiding duplicates
-      if (!allowDuplicates) {
-        for (const recipe of sorted) {
-          if (!usedRecipeUrls.has(recipe.url)) {
-            usedRecipeUrls.add(recipe.url)
-            return recipe
-          }
-        }
-      }
-
-      // If all used or duplicates allowed, return best scored
-      if (sorted.length > 0) {
-        const selected = sorted[0]
-        usedRecipeUrls.add(selected.url)
-        return selected
-      }
-
-      return null
-    }
-
     // Fill slots with recipes
     slots.forEach((slot) => {
-      // Special handling for Wednesday night (水曜夜) - use settings
-      if (slot.day === '水' && slot.mealTime === '夜' && wednesdayRecipes.length > 0) {
-        const randomIndex = Math.floor(Math.random() * wednesdayRecipes.length)
-        const selectedRecipe = wednesdayRecipes[randomIndex]
-        slot.items = [{
-          title: selectedRecipe.title,
-          url: selectedRecipe.url
-        }]
-        usedRecipeUrls.add(selectedRecipe.url)
-      } 
-      // Special handling for Friday night (金曜夜) - prioritize soup
-      else if (slot.day === '金' && slot.mealTime === '夜') {
-        // First, try to use Friday soup recipes from settings
-        if (fridaySoupRecipes.length > 0) {
-          const randomIndex = Math.floor(Math.random() * fridaySoupRecipes.length)
-          const selectedRecipe = fridaySoupRecipes[randomIndex]
-          slot.items = [{
-            title: selectedRecipe.title,
-            url: selectedRecipe.url
-          }]
-          slot.isSoup = true
-          usedRecipeUrls.add(selectedRecipe.url)
-        }
-        // Try to find best soup from candidate pool
-        else if (soupRecipes.length > 0) {
-          let selected = selectBestRecipe(soupRecipes, false)
-          if (!selected) {
-            // Allow duplicates if we have run out of unique soup recipes
-            selected = selectBestRecipe(soupRecipes, true)
-          }
-          if (selected) {
-            slot.items = [selected]
-            slot.isSoup = true
-          } else {
-            // As a final fallback, treat this as a soup candidate shortage
-            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
-            slot.warning = '要確認（スープ候補不足）'
-            slot.isSoup = false
-          }
-        } 
-        // If no soup candidates available, use best non-soup with warning
-        else {
-          const selected = selectBestRecipe(nonSoupRecipes, true)
-          if (selected) {
-            slot.items = [selected]
-          } else {
-            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
-          }
-          slot.warning = '要確認（スープ候補不足）'
-          slot.isSoup = false
-        }
-      } 
-      // Use best non-soup recipes for other slots
-      else {
-        const selected = selectBestRecipe(nonSoupRecipes, false)
-        if (selected) {
-          slot.items = [selected]
-        } else {
-          // Allow duplicates if we run out of unique recipes
-          const fallback = selectBestRecipe(allRecipes, true)
-          if (fallback) {
-            slot.items = [fallback]
-          } else {
-            slot.items = [{ title: 'レシピなし', url: 'https://example.com' }]
-          }
-        }
-      }
+      fillSlot(slot, usedRecipeUrls, recipeScores)
     })
 
     // Check if must ingredients were satisfied
@@ -348,6 +422,229 @@ function Main() {
     statusTimeoutRef.current = window.setTimeout(() => setCopyStatus(''), 3000)
   }
 
+  // Toggle lock status of a slot
+  const handleToggleLock = (index: number) => {
+    setMenuSlots(slots => {
+      const newSlots = [...slots]
+      newSlots[index] = {
+        ...newSlots[index],
+        isLocked: !newSlots[index].isLocked
+      }
+      return newSlots
+    })
+  }
+
+  // Update main ingredient for a slot
+  const handleUpdateMainIngredient = (index: number, ingredient: MainIngredient) => {
+    setMenuSlots(slots => {
+      const newSlots = [...slots]
+      newSlots[index] = {
+        ...newSlots[index],
+        mainIngredient: ingredient
+      }
+      return newSlots
+    })
+  }
+
+  // Regenerate a single slot
+  const handleRegenerateSlot = (index: number) => {
+    if (candidateRecipes.length === 0) {
+      setCopyStatus('候補プールが読み込まれていません')
+      return
+    }
+
+    const { ingredients } = parseIngredientInput(ingredientInput)
+
+    // Pre-calculate scores
+    const recipeScores = new Map<string, number>()
+    candidateRecipes.forEach(recipe => {
+      const score = calculateRecipeScore(
+        recipe,
+        ingredients,
+        recipe.author === RINATY_AUTHOR_NAME
+      )
+      recipeScores.set(recipe.url, score)
+    })
+
+    // Collect already used URLs from other slots
+    const usedRecipeUrls = new Set<string>()
+    menuSlots.forEach((slot, idx) => {
+      if (idx !== index) {
+        slot.items.forEach(item => usedRecipeUrls.add(item.url))
+      }
+    })
+
+    setMenuSlots(slots => {
+      const newSlots = [...slots]
+      const slot = { ...newSlots[index] }
+      
+      // Get main ingredient filter if set
+      const mainIngredientFilter = slot.mainIngredient
+      
+      // Clear previous content
+      slot.items = []
+      slot.warning = undefined
+      
+      // Fill the slot
+      fillSlot(slot, usedRecipeUrls, recipeScores, mainIngredientFilter)
+      
+      newSlots[index] = slot
+      return newSlots
+    })
+  }
+
+  // Regenerate all unlocked slots
+  const handleRegenerateUnlocked = () => {
+    if (candidateRecipes.length === 0) {
+      setCopyStatus('候補プールが読み込まれていません')
+      return
+    }
+
+    const { ingredients } = parseIngredientInput(ingredientInput)
+
+    // Pre-calculate scores
+    const recipeScores = new Map<string, number>()
+    candidateRecipes.forEach(recipe => {
+      const score = calculateRecipeScore(
+        recipe,
+        ingredients,
+        recipe.author === RINATY_AUTHOR_NAME
+      )
+      recipeScores.set(recipe.url, score)
+    })
+
+    // Collect URLs from locked slots
+    const usedRecipeUrls = new Set<string>()
+    menuSlots.forEach(slot => {
+      if (slot.isLocked) {
+        slot.items.forEach(item => usedRecipeUrls.add(item.url))
+      }
+    })
+
+    setMenuSlots(slots => {
+      const newSlots = slots.map(slot => {
+        if (slot.isLocked) {
+          // Keep locked slots unchanged
+          return slot
+        }
+        
+        // Regenerate unlocked slots
+        const newSlot = { ...slot }
+        const mainIngredientFilter = newSlot.mainIngredient
+        
+        // Clear previous content
+        newSlot.items = []
+        newSlot.warning = undefined
+        
+        // Fill the slot
+        fillSlot(newSlot, usedRecipeUrls, recipeScores, mainIngredientFilter)
+        
+        return newSlot
+      })
+      
+      return newSlots
+    })
+  }
+
+  // Generate shopping list from main ingredients
+  const handleGenerateShoppingList = () => {
+    if (menuSlots.length === 0) {
+      setShoppingCopyStatus('献立が作成されていません')
+      return
+    }
+
+    setShoppingList(prevItems => {
+      // Preserve checked state by ingredient text
+      const prevCheckedByIngredient = new Map<string, boolean>()
+      prevItems.forEach(item => {
+        prevCheckedByIngredient.set(item.ingredient, item.checked)
+      })
+
+      // Count main ingredients
+      const ingredientCounts = new Map<string, number>()
+      menuSlots.forEach(slot => {
+        if (slot.mainIngredient && slot.mainIngredient !== 'その他') {
+          const count = ingredientCounts.get(slot.mainIngredient) || 0
+          ingredientCounts.set(slot.mainIngredient, count + 1)
+        }
+      })
+
+      // Convert to shopping list items
+      const items: ShoppingListItem[] = []
+      ingredientCounts.forEach((count, ingredient) => {
+        const ingredientText = `${ingredient}（${count}食分）`
+        const prevChecked = prevCheckedByIngredient.get(ingredientText) ?? false
+        items.push({
+          id: `${ingredient}-${++shoppingListIdCounter.current}`,
+          ingredient: ingredientText,
+          checked: prevChecked
+        })
+      })
+
+      // Add custom items from input if any
+      if (shoppingListInput.trim()) {
+        const customItems = shoppingListInput.split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => {
+            const prevChecked = prevCheckedByIngredient.get(line) ?? false
+            return {
+              id: `custom-${++shoppingListIdCounter.current}`,
+              ingredient: line,
+              checked: prevChecked
+            }
+          })
+        items.push(...customItems)
+      }
+
+      return items
+    })
+    
+    // Clear the input after adding custom items
+    setShoppingListInput('')
+  }
+
+  // Toggle shopping list item checked status
+  const handleToggleShoppingItem = (id: string) => {
+    setShoppingList(items => 
+      items.map(item => 
+        item.id === id ? { ...item, checked: !item.checked } : item
+      )
+    )
+  }
+
+  // Remove shopping list item
+  const handleRemoveShoppingItem = (id: string) => {
+    setShoppingList(items => items.filter(item => item.id !== id))
+  }
+
+  // Copy shopping list to clipboard
+  const handleCopyShoppingList = async () => {
+    if (shoppingStatusTimeoutRef.current !== null) {
+      clearTimeout(shoppingStatusTimeoutRef.current)
+    }
+
+    if (shoppingList.length === 0) {
+      setShoppingCopyStatus('買い物リストが空です')
+      shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+      return
+    }
+
+    const text = shoppingList
+      .map(item => `${item.checked ? '☑' : '☐'} ${item.ingredient}`)
+      .join('\n')
+    
+    const success = await copyToClipboard(text)
+    
+    if (success) {
+      setShoppingCopyStatus('コピーしました！')
+    } else {
+      setShoppingCopyStatus('コピーに失敗しました')
+    }
+
+    shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+  }
+
   return (
     <div className="main-page">
       <h1>献立メーカー</h1>
@@ -403,6 +700,13 @@ function Main() {
           献立を作る
         </button>
         <button 
+          onClick={handleRegenerateUnlocked} 
+          className="btn btn-primary"
+          disabled={menuSlots.length === 0 || candidateRecipes.length === 0}
+        >
+          未確定のみ再生成
+        </button>
+        <button 
           onClick={handleCopyToClipboard} 
           className="btn btn-secondary"
           disabled={menuSlots.length === 0}
@@ -419,12 +723,22 @@ function Main() {
 
       <div className="menu-grid">
         {menuSlots.map((slot, index) => (
-          <div key={index} className="menu-card">
+          <div key={index} className={`menu-card ${slot.isLocked ? 'locked' : ''}`}>
             <div className="menu-card-header">
-              {slot.day}（{slot.mealTime}）
-              {slot.isSoup && (
-                <span className="soup-badge">🍲 スープ系</span>
-              )}
+              <span>
+                {slot.day}（{slot.mealTime}）
+                {slot.isSoup && (
+                  <span className="soup-badge">🍲 スープ系</span>
+                )}
+              </span>
+              <button
+                onClick={() => handleToggleLock(index)}
+                className="btn-lock"
+                title={slot.isLocked ? 'ロック解除' : 'ロック'}
+                aria-label={slot.isLocked ? '献立をロック解除' : '献立をロック'}
+              >
+                {slot.isLocked ? '🔒' : '🔓'}
+              </button>
             </div>
             <div className="menu-card-body">
               {slot.warning && (
@@ -432,6 +746,22 @@ function Main() {
                   ⚠️ {slot.warning}
                 </div>
               )}
+              
+              {/* Main ingredient display and edit */}
+              <div className="main-ingredient-section">
+                <label htmlFor={`main-ingredient-${index}`} className="main-ingredient-label">主材料:</label>
+                <select
+                  id={`main-ingredient-${index}`}
+                  className="main-ingredient-select"
+                  value={slot.mainIngredient || 'その他'}
+                  onChange={(e) => handleUpdateMainIngredient(index, e.target.value as MainIngredient)}
+                >
+                  {getAllMainIngredients().map(ing => (
+                    <option key={ing} value={ing}>{ing}</option>
+                  ))}
+                </select>
+              </div>
+
               {slot.items.map((item, itemIndex) => (
                 <div key={itemIndex} className="menu-item">
                   <div className="menu-item-title">{item.title}</div>
@@ -448,6 +778,14 @@ function Main() {
                   </a>
                 </div>
               ))}
+              
+              <button
+                onClick={() => handleRegenerateSlot(index)}
+                className="btn btn-regenerate"
+                disabled={slot.isLocked || candidateRecipes.length === 0}
+              >
+                この枠を再生成
+              </button>
             </div>
           </div>
         ))}
@@ -455,7 +793,71 @@ function Main() {
 
       <div className="shopping-list-section">
         <h2>買い出しリスト</h2>
-        <p className="not-implemented">今回は未対応</p>
+        <p className="shopping-description">
+          主材料に基づいて買い物リストを生成します。手動で項目を追加することもできます。
+        </p>
+        
+        <div className="shopping-input-section">
+          <textarea
+            className="shopping-input"
+            rows={4}
+            placeholder="追加する食材を入力（1行に1つ）"
+            aria-label="買い出しリストに追加する食材"
+            value={shoppingListInput}
+            onChange={(e) => setShoppingListInput(e.target.value)}
+          />
+          <button
+            onClick={handleGenerateShoppingList}
+            className="btn btn-primary"
+            disabled={menuSlots.length === 0}
+          >
+            リストを生成
+          </button>
+        </div>
+
+        {shoppingList.length > 0 && (
+          <>
+            <div className="shopping-list">
+              {shoppingList.map(item => (
+                <div key={item.id} className="shopping-item">
+                  <input
+                    type="checkbox"
+                    checked={item.checked}
+                    onChange={() => handleToggleShoppingItem(item.id)}
+                    className="shopping-checkbox"
+                    aria-label={item.ingredient}
+                  />
+                  <span className={`shopping-ingredient ${item.checked ? 'checked' : ''}`}>
+                    {item.ingredient}
+                  </span>
+                  <button
+                    onClick={() => handleRemoveShoppingItem(item.id)}
+                    className="btn-remove"
+                    title="削除"
+                    aria-label={`${item.ingredient}を削除`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            <div className="shopping-actions">
+              <button
+                onClick={handleCopyShoppingList}
+                className="btn btn-secondary"
+              >
+                買い物リストをコピー
+              </button>
+            </div>
+            
+            {shoppingCopyStatus && (
+              <div className="copy-status" role="status" aria-live="polite">
+                {shoppingCopyStatus}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
