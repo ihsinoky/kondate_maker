@@ -2,6 +2,8 @@
  * Types for menu planning
  */
 
+import { MainIngredient } from '../lib/mainIngredientEstimator'
+
 /**
  * Represents a single menu item (recipe)
  */
@@ -30,4 +32,6 @@ export interface MenuSlot {
   items: MenuItem[]
   warning?: string // Optional warning message (e.g., "要確認（スープ候補不足）")
   isSoup?: boolean // Indicates if this is a soup-based dish
+  isLocked?: boolean // Whether this slot is locked from regeneration
+  mainIngredient?: MainIngredient // Main ingredient (protein) for this recipe
 }
