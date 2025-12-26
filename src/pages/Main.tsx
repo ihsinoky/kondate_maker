@@ -40,10 +40,22 @@ function Main() {
     // Load saved weekly state
     try {
       const savedState = loadWeeklyState()
-      if (savedState && savedState.menuSlots.length > 0) {
-        setMenuSlots(savedState.menuSlots)
-        setShoppingList(savedState.shoppingList)
-        console.log('Loaded saved weekly state:', savedState.menuSlots.length, 'slots')
+      if (savedState) {
+        if (savedState.menuSlots.length > 0) {
+          setMenuSlots(savedState.menuSlots)
+        }
+        if (savedState.shoppingList.length > 0) {
+          setShoppingList(savedState.shoppingList)
+        }
+        if (savedState.menuSlots.length > 0 || savedState.shoppingList.length > 0) {
+          console.log(
+            'Loaded saved weekly state:',
+            savedState.menuSlots.length,
+            'slots,',
+            savedState.shoppingList.length,
+            'shopping items'
+          )
+        }
       }
     } catch (error) {
       console.error('Failed to load weekly state:', error)

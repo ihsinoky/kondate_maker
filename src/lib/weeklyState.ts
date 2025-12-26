@@ -94,8 +94,10 @@ export function loadWeeklyState(weekKey?: string): WeeklyState | null {
     }
     
     // Check schema version
-    if (!parsed.schemaVersion || typeof parsed.schemaVersion !== 'number' || 
-        parsed.schemaVersion < 1 || !Number.isInteger(parsed.schemaVersion)) {
+    if (parsed.schemaVersion === undefined || parsed.schemaVersion === null ||
+        typeof parsed.schemaVersion !== 'number' ||
+        !Number.isInteger(parsed.schemaVersion) ||
+        parsed.schemaVersion < 1) {
       console.warn('Missing or invalid schema version')
       return null
     }
