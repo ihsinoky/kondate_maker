@@ -653,6 +653,7 @@ function Main() {
 
   // Reset this week's state
   const handleResetWeek = () => {
+    // TODO: Replace with custom accessible modal for better screen reader support
     if (!confirm('今週の献立と買い物リストをリセットしますか？\nこの操作は取り消せません。')) {
       return
     }

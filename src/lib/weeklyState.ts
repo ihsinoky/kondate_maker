@@ -30,8 +30,14 @@ export interface WeeklyState {
 
 /**
  * Get the start of the week (Monday) for a given date
+ * Note: Sunday is treated as the last day of the previous week
  * @param date Date to get week start for (defaults to today)
  * @returns Date object representing Monday of that week
+ * @example
+ * // For any day from Monday to Saturday, returns the Monday of that week
+ * getWeekStart(new Date('2024-12-26')) // Thursday -> Monday Dec 23
+ * // For Sunday, returns the Monday of the previous week
+ * getWeekStart(new Date('2024-12-29')) // Sunday -> Monday Dec 23
  */
 export function getWeekStart(date: Date = new Date()): Date {
   const d = new Date(date)
@@ -88,7 +94,8 @@ export function loadWeeklyState(weekKey?: string): WeeklyState | null {
     }
     
     // Check schema version
-    if (!parsed.schemaVersion || typeof parsed.schemaVersion !== 'number') {
+    if (!parsed.schemaVersion || typeof parsed.schemaVersion !== 'number' || 
+        parsed.schemaVersion < 1 || !Number.isInteger(parsed.schemaVersion)) {
       console.warn('Missing or invalid schema version')
       return null
     }
