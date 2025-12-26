@@ -28,7 +28,8 @@ function Main() {
   const [shoppingCopyStatus, setShoppingCopyStatus] = useState<string>('')
   const statusTimeoutRef = useRef<number | null>(null)
   const shoppingStatusTimeoutRef = useRef<number | null>(null)
-  const isInitialMount = useRef<boolean>(true)
+  const isInitialMountMenuSlots = useRef<boolean>(true)
+  const isInitialMountShoppingList = useRef<boolean>(true)
   const shoppingListIdCounter = useRef<number>(0)
 
   // Load candidate pool and weekly state on mount
@@ -58,21 +59,30 @@ function Main() {
 
   // Auto-save menu slots when they change
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false
+    if (isInitialMountMenuSlots.current) {
+      isInitialMountMenuSlots.current = false
       return
     }
     if (menuSlots.length > 0) {
-      updateMenuSlots(menuSlots)
+      try {
+        updateMenuSlots(menuSlots)
+      } catch (error) {
+        console.error('Failed to auto-save menu slots:', error)
+      }
     }
   }, [menuSlots])
 
   // Auto-save shopping list when it changes
   useEffect(() => {
-    if (isInitialMount.current) {
+    if (isInitialMountShoppingList.current) {
+      isInitialMountShoppingList.current = false
       return
     }
-    updateShoppingList(shoppingList)
+    try {
+      updateShoppingList(shoppingList)
+    } catch (error) {
+      console.error('Failed to auto-save shopping list:', error)
+    }
   }, [shoppingList])
 
   // Load candidate pool from cache or network
@@ -589,6 +599,9 @@ function Main() {
 
       return items
     })
+    
+    // Clear the input after adding custom items
+    setShoppingListInput('')
   }
 
   // Toggle shopping list item checked status
