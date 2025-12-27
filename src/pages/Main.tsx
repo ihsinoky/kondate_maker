@@ -9,6 +9,9 @@ import { loadWeeklyState, updateMenuSlots, updateShoppingList, clearWeeklyState,
 
 const RINATY_AUTHOR_NAME = 'りなてぃ'
 
+// Filter options for regeneration (excluding その他)
+const REGENERATE_FILTER_OPTIONS = getAllMainIngredients().filter(ing => ing !== 'その他')
+
 interface IngredientItem {
   name: string
   isMust: boolean
@@ -504,8 +507,9 @@ function Main() {
       const slot = { ...newSlots[index] }
       
       // Get temporary filter if set, otherwise no filter
-      const tempFilter = regenerateFilters.get(index)
-      const mainIngredientFilter = tempFilter && tempFilter !== '指定なし' ? tempFilter : undefined
+      const filterValue = regenerateFilters.get(index)
+      const mainIngredientFilter: MainIngredient | undefined = 
+        filterValue && filterValue !== '指定なし' ? filterValue : undefined
       
       // Clear previous content
       slot.items = []
@@ -926,7 +930,7 @@ function Main() {
                     disabled={slot.isLocked}
                   >
                     <option value="指定なし">指定なし</option>
-                    {getAllMainIngredients().filter(ing => ing !== 'その他').map(ing => (
+                    {REGENERATE_FILTER_OPTIONS.map(ing => (
                       <option key={ing} value={ing}>{ing}</option>
                     ))}
                   </select>

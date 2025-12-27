@@ -455,6 +455,7 @@ p {
   background-color: #4caf50;
 }
 
+/* Button for regenerating a single slot (within .regenerate-section, margin handled by parent) */
 .btn-regenerate {
   width: 100%;
   padding: 0.5rem;
