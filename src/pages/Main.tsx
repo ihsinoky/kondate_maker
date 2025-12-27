@@ -565,6 +565,15 @@ function Main() {
     })
   }
 
+  // Helper to set shopping status with auto-clear timeout
+  const setShoppingStatusWithTimeout = (message: string) => {
+    if (shoppingStatusTimeoutRef.current !== null) {
+      clearTimeout(shoppingStatusTimeoutRef.current)
+    }
+    setShoppingCopyStatus(message)
+    shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+  }
+
   // Generate shopping list from main ingredients
   const handleGenerateShoppingList = () => {
     if (menuSlots.length === 0) {
@@ -585,8 +594,9 @@ function Main() {
     const items: ShoppingListItem[] = []
     ingredientCounts.forEach((count, ingredient) => {
       const ingredientText = `${ingredient}（${count}食分）`
+      shoppingListIdCounter.current++
       items.push({
-        id: `proposed-${ingredient}-${++shoppingListIdCounter.current}`,
+        id: `proposed-${ingredient}-${shoppingListIdCounter.current}`,
         ingredient: ingredientText,
         checked: false
       })
@@ -598,53 +608,43 @@ function Main() {
   // Copy proposed list to personal list (replace)
   const handleCopyToPersonal = () => {
     if (proposedShoppingList.length === 0) {
-      setShoppingCopyStatus('提案リストが空です')
-      if (shoppingStatusTimeoutRef.current !== null) {
-        clearTimeout(shoppingStatusTimeoutRef.current)
-      }
-      shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+      setShoppingStatusWithTimeout('提案リストが空です')
       return
     }
 
     // Create new items with fresh IDs for personal list
-    const newItems = proposedShoppingList.map(item => ({
-      id: `personal-${++shoppingListIdCounter.current}`,
-      ingredient: item.ingredient,
-      checked: false
-    }))
+    const newItems = proposedShoppingList.map(item => {
+      shoppingListIdCounter.current++
+      return {
+        id: `personal-${shoppingListIdCounter.current}`,
+        ingredient: item.ingredient,
+        checked: false
+      }
+    })
 
     setPersonalShoppingList(newItems)
-    setShoppingCopyStatus('提案を自分用リストにコピーしました')
-    if (shoppingStatusTimeoutRef.current !== null) {
-      clearTimeout(shoppingStatusTimeoutRef.current)
-    }
-    shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+    setShoppingStatusWithTimeout('提案を自分用リストにコピーしました')
   }
 
   // Append proposed list to personal list
   const handleAppendToPersonal = () => {
     if (proposedShoppingList.length === 0) {
-      setShoppingCopyStatus('提案リストが空です')
-      if (shoppingStatusTimeoutRef.current !== null) {
-        clearTimeout(shoppingStatusTimeoutRef.current)
-      }
-      shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+      setShoppingStatusWithTimeout('提案リストが空です')
       return
     }
 
     // Create new items with fresh IDs
-    const newItems = proposedShoppingList.map(item => ({
-      id: `personal-${++shoppingListIdCounter.current}`,
-      ingredient: item.ingredient,
-      checked: false
-    }))
+    const newItems = proposedShoppingList.map(item => {
+      shoppingListIdCounter.current++
+      return {
+        id: `personal-${shoppingListIdCounter.current}`,
+        ingredient: item.ingredient,
+        checked: false
+      }
+    })
 
     setPersonalShoppingList(prev => [...prev, ...newItems])
-    setShoppingCopyStatus('提案を自分用リストに追記しました')
-    if (shoppingStatusTimeoutRef.current !== null) {
-      clearTimeout(shoppingStatusTimeoutRef.current)
-    }
-    shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+    setShoppingStatusWithTimeout('提案を自分用リストに追記しました')
   }
 
   // Add custom items to personal list
@@ -656,11 +656,14 @@ function Main() {
     const customItems = shoppingListInput.split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0)
-      .map(line => ({
-        id: `custom-${++shoppingListIdCounter.current}`,
-        ingredient: line,
-        checked: false
-      }))
+      .map(line => {
+        shoppingListIdCounter.current++
+        return {
+          id: `custom-${shoppingListIdCounter.current}`,
+          ingredient: line,
+          checked: false
+        }
+      })
 
     setPersonalShoppingList(prev => [...prev, ...customItems])
     setShoppingListInput('')
