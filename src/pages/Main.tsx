@@ -23,14 +23,15 @@ function Main() {
   const [isLoadingPool, setIsLoadingPool] = useState<boolean>(false)
   const [ingredientInput, setIngredientInput] = useState<string>('')
   const [ingredientWarning, setIngredientWarning] = useState<string>('')
-  const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([])
+  const [proposedShoppingList, setProposedShoppingList] = useState<ShoppingListItem[]>([])
+  const [personalShoppingList, setPersonalShoppingList] = useState<ShoppingListItem[]>([])
   const [shoppingListInput, setShoppingListInput] = useState<string>('')
   const [shoppingCopyStatus, setShoppingCopyStatus] = useState<string>('')
   const [dataWarning, setDataWarning] = useState<string>('')
   const statusTimeoutRef = useRef<number | null>(null)
   const shoppingStatusTimeoutRef = useRef<number | null>(null)
   const isInitialMountMenuSlots = useRef<boolean>(true)
-  const isInitialMountShoppingList = useRef<boolean>(true)
+  const isInitialMountPersonalShoppingList = useRef<boolean>(true)
   const shoppingListIdCounter = useRef<number>(0)
 
   // Load candidate pool and weekly state on mount
@@ -45,7 +46,7 @@ function Main() {
           setMenuSlots(savedState.menuSlots)
         }
         if (savedState.shoppingList.length > 0) {
-          setShoppingList(savedState.shoppingList)
+          setPersonalShoppingList(savedState.shoppingList)
         }
         if (savedState.menuSlots.length > 0 || savedState.shoppingList.length > 0) {
           console.log(
@@ -90,18 +91,18 @@ function Main() {
     }
   }, [menuSlots])
 
-  // Auto-save shopping list when it changes
+  // Auto-save personal shopping list when it changes
   useEffect(() => {
-    if (isInitialMountShoppingList.current) {
-      isInitialMountShoppingList.current = false
+    if (isInitialMountPersonalShoppingList.current) {
+      isInitialMountPersonalShoppingList.current = false
       return
     }
     try {
-      updateShoppingList(shoppingList)
+      updateShoppingList(personalShoppingList)
     } catch (error) {
       console.error('Failed to auto-save shopping list:', error)
     }
-  }, [shoppingList])
+  }, [personalShoppingList])
 
   // Load candidate pool from cache or network
   const loadPool = async (forceReload: boolean) => {
@@ -571,60 +572,103 @@ function Main() {
       return
     }
 
-    setShoppingList(prevItems => {
-      // Preserve checked state by ingredient text
-      const prevCheckedByIngredient = new Map<string, boolean>()
-      prevItems.forEach(item => {
-        prevCheckedByIngredient.set(item.ingredient, item.checked)
-      })
-
-      // Count main ingredients
-      const ingredientCounts = new Map<string, number>()
-      menuSlots.forEach(slot => {
-        if (slot.mainIngredient && slot.mainIngredient !== 'その他') {
-          const count = ingredientCounts.get(slot.mainIngredient) || 0
-          ingredientCounts.set(slot.mainIngredient, count + 1)
-        }
-      })
-
-      // Convert to shopping list items
-      const items: ShoppingListItem[] = []
-      ingredientCounts.forEach((count, ingredient) => {
-        const ingredientText = `${ingredient}（${count}食分）`
-        const prevChecked = prevCheckedByIngredient.get(ingredientText) ?? false
-        items.push({
-          id: `${ingredient}-${++shoppingListIdCounter.current}`,
-          ingredient: ingredientText,
-          checked: prevChecked
-        })
-      })
-
-      // Add custom items from input if any
-      if (shoppingListInput.trim()) {
-        const customItems = shoppingListInput.split('\n')
-          .map(line => line.trim())
-          .filter(line => line.length > 0)
-          .map(line => {
-            const prevChecked = prevCheckedByIngredient.get(line) ?? false
-            return {
-              id: `custom-${++shoppingListIdCounter.current}`,
-              ingredient: line,
-              checked: prevChecked
-            }
-          })
-        items.push(...customItems)
+    // Count main ingredients
+    const ingredientCounts = new Map<string, number>()
+    menuSlots.forEach(slot => {
+      if (slot.mainIngredient && slot.mainIngredient !== 'その他') {
+        const count = ingredientCounts.get(slot.mainIngredient) || 0
+        ingredientCounts.set(slot.mainIngredient, count + 1)
       }
-
-      return items
     })
-    
-    // Clear the input after adding custom items
+
+    // Convert to shopping list items
+    const items: ShoppingListItem[] = []
+    ingredientCounts.forEach((count, ingredient) => {
+      const ingredientText = `${ingredient}（${count}食分）`
+      items.push({
+        id: `proposed-${ingredient}-${++shoppingListIdCounter.current}`,
+        ingredient: ingredientText,
+        checked: false
+      })
+    })
+
+    setProposedShoppingList(items)
+  }
+
+  // Copy proposed list to personal list (replace)
+  const handleCopyToPersonal = () => {
+    if (proposedShoppingList.length === 0) {
+      setShoppingCopyStatus('提案リストが空です')
+      if (shoppingStatusTimeoutRef.current !== null) {
+        clearTimeout(shoppingStatusTimeoutRef.current)
+      }
+      shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+      return
+    }
+
+    // Create new items with fresh IDs for personal list
+    const newItems = proposedShoppingList.map(item => ({
+      id: `personal-${++shoppingListIdCounter.current}`,
+      ingredient: item.ingredient,
+      checked: false
+    }))
+
+    setPersonalShoppingList(newItems)
+    setShoppingCopyStatus('提案を自分用リストにコピーしました')
+    if (shoppingStatusTimeoutRef.current !== null) {
+      clearTimeout(shoppingStatusTimeoutRef.current)
+    }
+    shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+  }
+
+  // Append proposed list to personal list
+  const handleAppendToPersonal = () => {
+    if (proposedShoppingList.length === 0) {
+      setShoppingCopyStatus('提案リストが空です')
+      if (shoppingStatusTimeoutRef.current !== null) {
+        clearTimeout(shoppingStatusTimeoutRef.current)
+      }
+      shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+      return
+    }
+
+    // Create new items with fresh IDs
+    const newItems = proposedShoppingList.map(item => ({
+      id: `personal-${++shoppingListIdCounter.current}`,
+      ingredient: item.ingredient,
+      checked: false
+    }))
+
+    setPersonalShoppingList(prev => [...prev, ...newItems])
+    setShoppingCopyStatus('提案を自分用リストに追記しました')
+    if (shoppingStatusTimeoutRef.current !== null) {
+      clearTimeout(shoppingStatusTimeoutRef.current)
+    }
+    shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+  }
+
+  // Add custom items to personal list
+  const handleAddCustomItems = () => {
+    if (!shoppingListInput.trim()) {
+      return
+    }
+
+    const customItems = shoppingListInput.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => ({
+        id: `custom-${++shoppingListIdCounter.current}`,
+        ingredient: line,
+        checked: false
+      }))
+
+    setPersonalShoppingList(prev => [...prev, ...customItems])
     setShoppingListInput('')
   }
 
   // Toggle shopping list item checked status
   const handleToggleShoppingItem = (id: string) => {
-    setShoppingList(items => 
+    setPersonalShoppingList(items => 
       items.map(item => 
         item.id === id ? { ...item, checked: !item.checked } : item
       )
@@ -633,7 +677,7 @@ function Main() {
 
   // Remove shopping list item
   const handleRemoveShoppingItem = (id: string) => {
-    setShoppingList(items => items.filter(item => item.id !== id))
+    setPersonalShoppingList(items => items.filter(item => item.id !== id))
   }
 
   // Copy shopping list to clipboard
@@ -642,13 +686,13 @@ function Main() {
       clearTimeout(shoppingStatusTimeoutRef.current)
     }
 
-    if (shoppingList.length === 0) {
+    if (personalShoppingList.length === 0) {
       setShoppingCopyStatus('買い物リストが空です')
       shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
       return
     }
 
-    const text = shoppingList
+    const text = personalShoppingList
       .map(item => `${item.checked ? '☑' : '☐'} ${item.ingredient}`)
       .join('\n')
     
@@ -673,7 +717,8 @@ function Main() {
     try {
       clearWeeklyState()
       setMenuSlots([])
-      setShoppingList([])
+      setProposedShoppingList([])
+      setPersonalShoppingList([])
       setIngredientInput('')
       setShoppingListInput('')
       setCopyStatus('今週の状態をリセットしました')
@@ -770,7 +815,7 @@ function Main() {
         <button 
           onClick={handleResetWeek} 
           className="btn btn-danger"
-          disabled={menuSlots.length === 0 && shoppingList.length === 0}
+          disabled={menuSlots.length === 0 && personalShoppingList.length === 0}
           title="今週の献立と買い物リストをリセット"
         >
           今週をリセット
@@ -855,70 +900,122 @@ function Main() {
 
       <div className="shopping-list-section">
         <h2>買い出しリスト</h2>
-        <p className="shopping-description">
-          主材料に基づいて買い物リストを生成します。手動で項目を追加することもできます。
-        </p>
         
-        <div className="shopping-input-section">
-          <textarea
-            className="shopping-input"
-            rows={4}
-            placeholder="追加する食材を入力（1行に1つ）"
-            aria-label="買い出しリストに追加する食材"
-            value={shoppingListInput}
-            onChange={(e) => setShoppingListInput(e.target.value)}
-          />
+        {/* Proposed Shopping List */}
+        <div className="shopping-subsection">
+          <h3>買い物（提案）</h3>
+          <p className="shopping-description">
+            献立の主材料に基づいて自動生成される買い物リストです。
+          </p>
+          
           <button
             onClick={handleGenerateShoppingList}
             className="btn btn-primary"
             disabled={menuSlots.length === 0}
           >
-            リストを生成
+            提案リストを生成
           </button>
+
+          {proposedShoppingList.length > 0 && (
+            <>
+              <div className="shopping-list proposed-list">
+                {proposedShoppingList.map(item => (
+                  <div key={item.id} className="shopping-item proposed-item">
+                    <span className="shopping-ingredient">
+                      {item.ingredient}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="shopping-actions">
+                <button
+                  onClick={handleCopyToPersonal}
+                  className="btn btn-secondary"
+                  title="提案を自分用リストにコピー（既存の自分用リストは置き換えられます）"
+                >
+                  自分用へコピー
+                </button>
+                <button
+                  onClick={handleAppendToPersonal}
+                  className="btn btn-secondary"
+                  title="提案を自分用リストに追記（既存の自分用リストに追加されます）"
+                >
+                  自分用へ追記
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
-        {shoppingList.length > 0 && (
-          <>
-            <div className="shopping-list">
-              {shoppingList.map(item => (
-                <div key={item.id} className="shopping-item">
-                  <input
-                    type="checkbox"
-                    checked={item.checked}
-                    onChange={() => handleToggleShoppingItem(item.id)}
-                    className="shopping-checkbox"
-                    aria-label={item.ingredient}
-                  />
-                  <span className={`shopping-ingredient ${item.checked ? 'checked' : ''}`}>
-                    {item.ingredient}
-                  </span>
-                  <button
-                    onClick={() => handleRemoveShoppingItem(item.id)}
-                    className="btn-remove"
-                    title="削除"
-                    aria-label={`${item.ingredient}を削除`}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-            
-            <div className="shopping-actions">
-              <button
-                onClick={handleCopyShoppingList}
-                className="btn btn-secondary"
-              >
-                買い物リストをコピー
-              </button>
-            </div>
-            
-            {shoppingCopyStatus && (
-              <div className="copy-status" role="status" aria-live="polite">
-                {shoppingCopyStatus}
+        {/* Personal Shopping List */}
+        <div className="shopping-subsection">
+          <h3>買い物（自分用）</h3>
+          <p className="shopping-description">
+            自分で編集できる買い物リストです。チェック、追加、削除が可能で、リロード後も保持されます。
+          </p>
+          
+          <div className="shopping-input-section">
+            <textarea
+              className="shopping-input"
+              rows={4}
+              placeholder="追加する食材を入力（1行に1つ）"
+              aria-label="買い出しリストに追加する食材"
+              value={shoppingListInput}
+              onChange={(e) => setShoppingListInput(e.target.value)}
+            />
+            <button
+              onClick={handleAddCustomItems}
+              className="btn btn-primary"
+              disabled={!shoppingListInput.trim()}
+            >
+              追加
+            </button>
+          </div>
+
+          {personalShoppingList.length > 0 && (
+            <>
+              <div className="shopping-list personal-list">
+                {personalShoppingList.map(item => (
+                  <div key={item.id} className="shopping-item">
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
+                      onChange={() => handleToggleShoppingItem(item.id)}
+                      className="shopping-checkbox"
+                      aria-label={item.ingredient}
+                    />
+                    <span className={`shopping-ingredient ${item.checked ? 'checked' : ''}`}>
+                      {item.ingredient}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveShoppingItem(item.id)}
+                      className="btn-remove"
+                      title="削除"
+                      aria-label={`${item.ingredient}を削除`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
-            )}
-          </>
+              
+              <div className="shopping-actions">
+                <button
+                  onClick={handleCopyShoppingList}
+                  className="btn btn-secondary"
+                >
+                  クリップボードへコピー
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {shoppingCopyStatus && (
+          <div className="copy-status" role="status" aria-live="polite">
+            {shoppingCopyStatus}
+          </div>
         )}
       </div>
     </div>

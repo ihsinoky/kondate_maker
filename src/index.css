@@ -315,7 +315,21 @@ p {
 
 .shopping-list-section h2 {
   font-size: 1.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.shopping-subsection {
+  margin-bottom: 2.5rem;
+  padding: 1.5rem;
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+}
+
+.shopping-subsection h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #646cff;
 }
 
 .shopping-description {
@@ -353,6 +367,13 @@ p {
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1rem;
+  margin-top: 1rem;
+}
+
+.proposed-list {
+  background-color: #242424;
+  padding: 1rem;
+  border-radius: 4px;
 }
 
 .shopping-item {
@@ -363,6 +384,11 @@ p {
   background-color: #1a1a1a;
   border: 1px solid #333;
   border-radius: 4px;
+}
+
+.proposed-item {
+  background-color: #2a2a2a;
+  border: 1px solid #444;
 }
 
 .shopping-checkbox {
@@ -399,6 +425,7 @@ p {
   display: flex;
   gap: 1rem;
   margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
 .not-implemented {
@@ -677,11 +704,47 @@ p {
     border-top-color: #ddd;
   }
 
-  .not-implemented {
+  .shopping-subsection {
+    background-color: #f5f5f5;
+    border-color: #ddd;
+  }
+
+  .shopping-subsection h3 {
+    color: #535bf2;
+  }
+
+  /* Shopping list light mode */
+  .shopping-description {
     color: #666;
   }
 
-  /* Settings page light mode */
+  .shopping-input {
+    background-color: #ffffff;
+    border-color: #ddd;
+    color: #213547;
+  }
+
+  .shopping-input:focus {
+    border-color: #535bf2;
+  }
+
+  .shopping-item {
+    background-color: #ffffff;
+    border-color: #ddd;
+  }
+
+  .proposed-item {
+    background-color: #f9f9f9;
+    border-color: #ccc;
+  }
+
+  .proposed-list {
+    background-color: #f5f5f5;
+  }
+
+  .shopping-ingredient.checked {
+    color: #999;
+  }
   .settings-description {
     color: #666;
   }
@@ -752,28 +815,8 @@ p {
     border-color: #535bf2;
   }
 
-  /* Shopping list light mode */
-  .shopping-description {
+  .not-implemented {
     color: #666;
-  }
-
-  .shopping-input {
-    background-color: #ffffff;
-    border-color: #ddd;
-    color: #213547;
-  }
-
-  .shopping-input:focus {
-    border-color: #535bf2;
-  }
-
-  .shopping-item {
-    background-color: #ffffff;
-    border-color: #ddd;
-  }
-
-  .shopping-ingredient.checked {
-    color: #999;
   }
 
   /* Main ingredient light mode */
