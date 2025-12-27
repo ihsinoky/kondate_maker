@@ -33,6 +33,7 @@ function Main() {
   const isInitialMountMenuSlots = useRef<boolean>(true)
   const isInitialMountPersonalShoppingList = useRef<boolean>(true)
   const shoppingListIdCounter = useRef<number>(0)
+  const [regenerateFilters, setRegenerateFilters] = useState<Map<number, MainIngredient | '指定なし'>>(new Map())
 
   // Load candidate pool and weekly state on mount
   useEffect(() => {
@@ -202,7 +203,7 @@ function Main() {
     usedRecipeUrls: Set<string>,
     recipeScores: Map<string, number>,
     mainIngredientFilter?: MainIngredient
-  ): void => {
+  ): boolean => {
     const settings = loadSettings()
     const wednesdayRecipes = settings?.wednesdayRecipes || []
     const fridaySoupRecipes = settings?.fridaySoupRecipes || []
@@ -210,6 +211,8 @@ function Main() {
     const allRecipes = [...candidateRecipes]
     const soupRecipes = allRecipes.filter(recipe => isSoupRecipe(recipe.title))
     const nonSoupRecipes = allRecipes.filter(recipe => !isSoupRecipe(recipe.title))
+
+    let filterRelaxed = false
 
     // Helper to select best available recipe from a pool
     const selectBestRecipe = (
@@ -225,6 +228,7 @@ function Main() {
         // If no matches with filter, fall back to full pool
         if (filteredPool.length === 0) {
           filteredPool = pool
+          filterRelaxed = true
         }
       }
 
@@ -328,6 +332,8 @@ function Main() {
         }
       }
     }
+    
+    return filterRelaxed
   }
 
   // Generate menu data from candidate pool with ingredient scoring
@@ -497,18 +503,33 @@ function Main() {
       const newSlots = [...slots]
       const slot = { ...newSlots[index] }
       
-      // Get main ingredient filter if set
-      const mainIngredientFilter = slot.mainIngredient
+      // Get temporary filter if set, otherwise no filter
+      const tempFilter = regenerateFilters.get(index)
+      const mainIngredientFilter = tempFilter && tempFilter !== '指定なし' ? tempFilter : undefined
       
       // Clear previous content
       slot.items = []
       slot.warning = undefined
       
-      // Fill the slot
-      fillSlot(slot, usedRecipeUrls, recipeScores, mainIngredientFilter)
+      // Fill the slot and check if filter was relaxed
+      const filterRelaxed = fillSlot(slot, usedRecipeUrls, recipeScores, mainIngredientFilter)
+      
+      // Add warning if filter was relaxed due to insufficient candidates
+      if (filterRelaxed && mainIngredientFilter) {
+        slot.warning = `候補不足のため条件を緩めました（指定: ${mainIngredientFilter}）`
+      }
       
       newSlots[index] = slot
       return newSlots
+    })
+  }
+
+  // Update regenerate filter for a slot
+  const handleUpdateRegenerateFilter = (index: number, filter: MainIngredient | '指定なし') => {
+    setRegenerateFilters(prev => {
+      const newFilters = new Map(prev)
+      newFilters.set(index, filter)
+      return newFilters
     })
   }
 
@@ -891,13 +912,33 @@ function Main() {
                 </div>
               ))}
               
-              <button
-                onClick={() => handleRegenerateSlot(index)}
-                className="btn btn-regenerate"
-                disabled={slot.isLocked || candidateRecipes.length === 0}
-              >
-                この枠を再生成
-              </button>
+              {/* Regenerate filter section */}
+              <div className="regenerate-section">
+                <div className="regenerate-filter">
+                  <label htmlFor={`regenerate-filter-${index}`} className="regenerate-filter-label">
+                    再生成フィルタ:
+                  </label>
+                  <select
+                    id={`regenerate-filter-${index}`}
+                    className="regenerate-filter-select"
+                    value={regenerateFilters.get(index) || '指定なし'}
+                    onChange={(e) => handleUpdateRegenerateFilter(index, e.target.value as MainIngredient | '指定なし')}
+                    disabled={slot.isLocked}
+                  >
+                    <option value="指定なし">指定なし</option>
+                    {getAllMainIngredients().filter(ing => ing !== 'その他').map(ing => (
+                      <option key={ing} value={ing}>{ing}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={() => handleRegenerateSlot(index)}
+                  className="btn btn-regenerate"
+                  disabled={slot.isLocked || candidateRecipes.length === 0}
+                >
+                  この枠を再生成
+                </button>
+              </div>
             </div>
           </div>
         ))}
