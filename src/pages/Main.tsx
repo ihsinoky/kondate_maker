@@ -577,7 +577,7 @@ function Main() {
   // Generate shopping list from main ingredients
   const handleGenerateShoppingList = () => {
     if (menuSlots.length === 0) {
-      setShoppingCopyStatus('献立が作成されていません')
+      setShoppingStatusWithTimeout('献立が作成されていません')
       return
     }
 
@@ -643,7 +643,16 @@ function Main() {
       }
     })
 
-    setPersonalShoppingList(prev => [...prev, ...newItems])
+    // Filter out duplicates based on ingredient text
+    setPersonalShoppingList(prev => {
+      const existingIngredients = new Set(
+        prev.map(item => item.ingredient.trim())
+      )
+      const filteredNewItems = newItems.filter(
+        item => !existingIngredients.has(item.ingredient.trim())
+      )
+      return [...prev, ...filteredNewItems]
+    })
     setShoppingStatusWithTimeout('提案を自分用リストに追記しました')
   }
 
@@ -685,13 +694,8 @@ function Main() {
 
   // Copy shopping list to clipboard
   const handleCopyShoppingList = async () => {
-    if (shoppingStatusTimeoutRef.current !== null) {
-      clearTimeout(shoppingStatusTimeoutRef.current)
-    }
-
     if (personalShoppingList.length === 0) {
-      setShoppingCopyStatus('買い物リストが空です')
-      shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
+      setShoppingStatusWithTimeout('買い物リストが空です')
       return
     }
 
@@ -702,12 +706,10 @@ function Main() {
     const success = await copyToClipboard(text)
     
     if (success) {
-      setShoppingCopyStatus('コピーしました！')
+      setShoppingStatusWithTimeout('コピーしました！')
     } else {
-      setShoppingCopyStatus('コピーに失敗しました')
+      setShoppingStatusWithTimeout('コピーに失敗しました')
     }
-
-    shoppingStatusTimeoutRef.current = window.setTimeout(() => setShoppingCopyStatus(''), 3000)
   }
 
   // Reset this week's state
