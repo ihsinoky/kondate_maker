@@ -97,7 +97,7 @@ npm run lint
 
 ユニットテストの実行：
 ```bash
-npm test  # 全テスト実行（62テスト）
+npm test  # 全テスト実行（61テスト）
 ```
 
 テストの詳細は [TESTING.md](docs/TESTING.md) を参照してください。
