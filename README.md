@@ -46,8 +46,12 @@
 npm run merge:inbox
 
 # テスト実行
-npm run test:merge-inbox
-npm run test:merge-inbox:integration
+npm test                          # 全テスト実行
+npm run test:main-ingredient      # 主材料推定テスト
+npm run test:weekly-state         # 週状態・再生成テスト
+npm run test:filter-behavior      # フィルタ動作テスト
+npm run test:merge-inbox          # inboxマージテスト
+npm run test:merge-inbox:integration  # 統合テスト
 ```
 
 ## 開発環境のセットアップ
@@ -88,6 +92,15 @@ npm run preview
 ```bash
 npm run lint
 ```
+
+### テスト
+
+ユニットテストの実行：
+```bash
+npm test  # 全テスト実行（62テスト）
+```
+
+テストの詳細は [TESTING.md](docs/TESTING.md) を参照してください。
 
 ## ディレクトリ構成
 ```
@@ -136,5 +149,15 @@ https://ihsinoky.github.io/kondate_maker/
 - 未使用の変数・パラメータは警告
 
 ## CI/CD
-- **CI**: PR/Push時に自動的に lint と build を実行
+- **CI**: PR/Push時に自動的に test、lint、build を実行
 - **Deploy**: `main` ブランチへのプッシュ時に GitHub Pages へ自動デプロイ
+
+## テスト
+
+プロジェクトには以下のユニットテストが含まれています：
+
+- **主材料推定テスト** (35テスト): レシピタイトルから主材料（タンパク質）を正確に推定
+- **週状態・部分再生成テスト** (12テスト): ロック機能と状態永続化の動作保証
+- **フィルタ動作テスト** (15テスト): 主材料フィルタの優先挙動と候補不足時の緩和
+
+詳細は [TESTING.md](docs/TESTING.md) を参照してください。
