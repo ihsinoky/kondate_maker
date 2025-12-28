@@ -7,9 +7,13 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "merge:inbox": "tsx scripts/merge-inbox.ts",
-    "test:merge-inbox": "tsx scripts/merge-inbox.test.ts",
-    "test:merge-inbox:integration": "tsx scripts/merge-inbox.integration.test.ts"
+    "test": "npm run test:main-ingredient && npm run test:weekly-state && npm run test:filter-behavior",
+    "test:main-ingredient": "npx tsx src/lib/mainIngredientEstimator.test.ts",
+    "test:weekly-state": "npx tsx src/lib/weeklyState.test.ts",
+    "test:filter-behavior": "npx tsx src/lib/filterBehavior.test.ts",
+    "merge:inbox": "npx tsx scripts/merge-inbox.ts",
+    "test:merge-inbox": "npx tsx scripts/merge-inbox.test.ts",
+    "test:merge-inbox:integration": "npx tsx scripts/merge-inbox.integration.test.ts"
   },
   "dependencies": {
     "react": "^18.2.0",
