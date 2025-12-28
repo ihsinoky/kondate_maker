@@ -50,7 +50,7 @@ const testCases: TestCase[] = []
 
 // Test 1: Filter by main ingredient - finds matching recipe
 testCases.push({
-  description: 'Filter by main ingredient successfully finds matching recipe',
+  description: 'Filter by main ingredient successfully finds matching recipes',
   test: () => {
     const targetIngredient: MainIngredient = '豚肉'
     const filteredRecipes = MOCK_CANDIDATE_POOL.filter(recipe => 
