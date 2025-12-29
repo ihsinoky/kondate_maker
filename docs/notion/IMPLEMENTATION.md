@@ -63,6 +63,13 @@ Unified pool loading with source priority:
 
 ## Configuration
 
+**⚠️ SECURITY WARNING:** The current implementation uses `VITE_NOTION_TOKEN` which exposes the Notion API token in the browser bundle. This is only acceptable for:
+- Development/demo purposes
+- Personal use with private repositories
+- Proof-of-concept implementations
+
+**NOT recommended for production deployments with untrusted users.** For production use, move Notion API calls to a backend/serverless function to keep tokens server-side.
+
 Set these environment variables:
 
 ```bash
