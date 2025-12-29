@@ -135,17 +135,21 @@
 
 1. **Recipes データベースを開く**
 2. 右上の「・・・」（More）メニューをクリック
-3. 「Copy data source ID」を選択
-4. クリップボードにコピーされた ID（UUID形式）をメモ帳などに保存
+3. **「Manage data sources」**セクションを探す（メニュー下部）
+4. データソースの横にある三点メニュー（⋮）から **「Copy data source ID」** を選択
+5. クリップボードにコピーされた ID（UUID形式）をメモ帳などに保存
 
    例: `a1b2c3d4-e5f6-7890-abcd-ef1234567890`
+   
+   💡 **ヒント**: シンプルなデータベース（単一データソース）の場合、「・・・」メニューに直接「Copy data source ID」が表示されることもあります。
 
 #### 4-2. Meal Logs の data_source_id を取得
 
 1. **Meal Logs データベースを開く**
 2. 右上の「・・・」（More）メニューをクリック
-3. 「Copy data source ID」を選択
-4. クリップボードにコピーされた ID をメモ帳などに保存
+3. **「Manage data sources」**セクションを探す（メニュー下部）
+4. データソースの横にある三点メニュー（⋮）から **「Copy data source ID」** を選択
+5. クリップボードにコピーされた ID をメモ帳などに保存
 
 ### ステップ5: GitHub Secrets / Variables の設定
 
@@ -238,21 +242,29 @@ M1実装後、以下の手順で動作確認を行います：
 
 ### data_source_id が見つからない
 
-**原因**: Notion の UI バージョンによっては「Copy data source ID」が表示されない場合がある
+**原因**: Notion の UI バージョンや表示状態によって「Copy data source ID」の場所が異なる場合がある
 
 **解決方法**:
-1. ブラウザの URL バーからデータベース ID を取得
-   - データベースを開いた状態で URL を確認
-   - `https://www.notion.so/{workspace}/{database_id}?v=...`
-   - `database_id` の部分（32文字の16進数）をコピー
-   - ハイフンを挿入して UUID 形式に変換: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+1. **メニューの確認**:
+   - データベースの「・・・」メニューを開く
+   - 下部の「Manage data sources」セクションを展開
+   - 各データソースの三点メニュー（⋮）から「Copy data source ID」を探す
 
-2. または、Notion API を直接呼び出して確認:
+2. **URL から取得**（代替方法）:
+   - データベースを開いた状態で URL を確認
+   - `https://www.notion.so/{workspace}/{id}?v=...`
+   - `id` の部分（32文字の16進数）をコピー
+   - ハイフンを挿入して UUID 形式に変換: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`
+   
+   ⚠️ **注意**: URL の ID は database_id の場合もあるため、この方法は確実ではありません。可能な限りメニューから「Copy data source ID」を使用してください。
+
+3. **Notion API で確認**（開発者向け）:
    ```bash
    curl -X GET 'https://api.notion.com/v1/databases/{database_id}' \
      -H 'Authorization: Bearer YOUR_TOKEN' \
      -H 'Notion-Version: 2025-09-03'
    ```
+   レスポンスの `data_sources` 配列に各データソースの ID が含まれています。
 
 ## 次のステップ
 
