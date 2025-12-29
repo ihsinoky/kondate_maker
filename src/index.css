@@ -144,6 +144,35 @@ p {
   font-size: 0.95rem;
 }
 
+.pool-source-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-top: 0.25rem;
+}
+
+.notion-badge {
+  background-color: #2eaadc;
+  color: white;
+}
+
+.network-badge {
+  background-color: #4caf50;
+  color: white;
+}
+
+.cache-badge {
+  background-color: #9e9e9e;
+  color: white;
+}
+
+.fallback-badge {
+  background-color: #ff9800;
+  color: white;
+}
+
 .pool-timestamp {
   color: #888;
   font-size: 0.875rem;
