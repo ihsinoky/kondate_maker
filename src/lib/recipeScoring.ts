@@ -17,12 +17,16 @@ const RATING_WEIGHT = 10 // Each rating point adds 10 to score
 const RECENCY_PENALTY = 30 // Penalty for recipes used within recency window
 
 /**
- * Calculate days between two dates
+ * Calculate days between two dates using calendar days
+ * Normalizes both dates to midnight before calculating the difference
  */
 function daysBetween(date1: Date, date2: Date): number {
   const msPerDay = 1000 * 60 * 60 * 24
-  const diff = date1.getTime() - date2.getTime()
-  return Math.floor(diff / msPerDay)
+  // Normalize to start of day (midnight)
+  const startOfDay1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate())
+  const startOfDay2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate())
+  const diff = startOfDay1.getTime() - startOfDay2.getTime()
+  return Math.round(diff / msPerDay)
 }
 
 /**
@@ -146,41 +150,22 @@ export function selectTopRecipes(
   wasRelaxed: boolean
   warning?: string
 } {
-  let recencyWindow = initialRecencyWindow
-  let scoredRecipes = scoreRecipes(recipes, mealLogs, recencyWindow)
-  let wasRelaxed = false
-  let warning: string | undefined
-  
-  // If we don't have enough candidates, try relaxing the recency window
-  while (scoredRecipes.length < count && recencyWindow > 0) {
-    const newWindow = relaxRecencyWindow(recencyWindow)
-    if (newWindow === null) {
-      break // Can't relax further
-    }
-    
-    wasRelaxed = true
-    recencyWindow = newWindow
-    scoredRecipes = scoreRecipes(recipes, mealLogs, recencyWindow)
-    
-    if (recencyWindow === 0) {
-      warning = '候補不足のため、直近抑制を解除しました。'
-    } else {
-      warning = `候補不足のため、直近抑制を${recencyWindow}日に緩和しました。`
-    }
-  }
+  // Score all recipes with initial recency window
+  const scoredRecipes = scoreRecipes(recipes, mealLogs, initialRecencyWindow)
   
   // Take top N
   const selected = scoredRecipes.slice(0, count)
   
-  // If still insufficient, add warning
+  // Check if we have insufficient recipes (not enough total recipes, not about scoring)
+  let warning: string | undefined
   if (selected.length < count) {
     warning = `候補が不足しています（必要: ${count}件、取得: ${selected.length}件）。Notionのレシピを追加してください。`
   }
   
   return {
     scoredRecipes: selected,
-    recencyWindowUsed: recencyWindow,
-    wasRelaxed,
+    recencyWindowUsed: initialRecencyWindow,
+    wasRelaxed: false,
     warning
   }
 }

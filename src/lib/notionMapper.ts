@@ -68,6 +68,9 @@ function extractMultiSelect(property: NotionProperty | undefined): string[] {
 
 /**
  * Extract checkbox value from a checkbox property
+ * Note: Defaults to true if property doesn't exist, consistent with the query filter
+ * that explicitly looks for Active=true. Recipes without Active property won't be
+ * returned by the query, so this default only applies to edge cases.
  */
 function extractCheckbox(property: NotionProperty | undefined): boolean {
   if (!property || property.type !== 'checkbox') {

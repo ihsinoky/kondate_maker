@@ -342,7 +342,7 @@ VITE_NOTION_MEAL_LOGS_DATA_SOURCE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 M1実装で追加されたテスト：
 
 ```bash
-# 全テスト（67テスト）
+# 全テスト（83テスト）
 npm test
 
 # Notionマッパーテスト（10テスト）
