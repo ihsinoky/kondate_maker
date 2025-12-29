@@ -7,15 +7,18 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "test": "npm run test:main-ingredient && npm run test:weekly-state && npm run test:filter-behavior",
+    "test": "npm run test:main-ingredient && npm run test:weekly-state && npm run test:filter-behavior && npm run test:notion-mapper && npm run test:recipe-scoring",
     "test:main-ingredient": "npx tsx src/lib/mainIngredientEstimator.test.ts",
     "test:weekly-state": "npx tsx src/lib/weeklyState.test.ts",
     "test:filter-behavior": "npx tsx src/lib/filterBehavior.test.ts",
+    "test:notion-mapper": "npx tsx src/lib/notionMapper.test.ts",
+    "test:recipe-scoring": "npx tsx src/lib/recipeScoring.test.ts",
     "merge:inbox": "npx tsx scripts/merge-inbox.ts",
     "test:merge-inbox": "npx tsx scripts/merge-inbox.test.ts",
     "test:merge-inbox:integration": "npx tsx scripts/merge-inbox.integration.test.ts"
   },
   "dependencies": {
+    "@notionhq/client": "^2.2.15",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.1"
