@@ -22,6 +22,7 @@ function Main() {
   const [copyStatus, setCopyStatus] = useState<string>('')
   const [candidateRecipes, setCandidateRecipes] = useState<CandidateRecipe[]>([])
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+  const [poolSource, setPoolSource] = useState<'network' | 'cache' | 'fallback' | 'notion'>('network')
   const [poolWarning, setPoolWarning] = useState<string>('')
   const [isLoadingPool, setIsLoadingPool] = useState<boolean>(false)
   const [ingredientInput, setIngredientInput] = useState<string>('')
@@ -117,6 +118,7 @@ function Main() {
       const result = await loadCandidatePool(forceReload)
       setCandidateRecipes(result.recipes)
       setLastUpdate(result.timestamp)
+      setPoolSource(result.source)
       
       if (result.warning) {
         setPoolWarning(result.warning)
@@ -775,6 +777,18 @@ function Main() {
       <div className="pool-status">
         <div className="pool-info">
           <span>候補プール: {candidateRecipes.length}件</span>
+          {poolSource === 'notion' && (
+            <span className="pool-source-badge notion-badge">📔 Notion</span>
+          )}
+          {poolSource === 'network' && (
+            <span className="pool-source-badge network-badge">🌐 JSON</span>
+          )}
+          {poolSource === 'cache' && (
+            <span className="pool-source-badge cache-badge">💾 キャッシュ</span>
+          )}
+          {poolSource === 'fallback' && (
+            <span className="pool-source-badge fallback-badge">⚙️ フォールバック</span>
+          )}
           <span className="pool-timestamp">
             最終取得: {formatTimestamp(lastUpdate)}
           </span>

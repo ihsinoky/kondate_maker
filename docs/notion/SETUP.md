@@ -270,10 +270,10 @@ M1実装後、以下の手順で動作確認を行います：
 
 セットアップが完了したら：
 
-1. **M1 Issue** の実装を進める
-   - Recipes データソースからのレシピ取得
-   - Meal Logs からの直近履歴取得
-   - 献立生成ロジックへの統合
+1. **M1 実装の動作確認**
+   - Recipes データソースからのレシピ取得が動作する
+   - Meal Logs からの直近履歴取得が動作する
+   - 献立生成時に「直近抑制＋高評価優先」が反映される
 
 2. **テストデータの拡充**
    - Recipes に実際のレシピを登録（10〜20件程度）
@@ -284,6 +284,94 @@ M1実装後、以下の手順で動作確認を行います：
    - 献立を作成し、Meal Logs に記録
    - 食後評価（RatingAfter）を記録し、Recipes の Rating を更新
 
+## M1 実装完了
+
+### 実装されたモジュール
+
+以下のモジュールが実装され、Notion連携が利用可能になりました：
+
+1. **src/lib/notionClient.ts**
+   - Notion API 2025-09-03 との通信を担当
+   - `queryDataSource()`: ページネーション対応のデータ取得
+   - `fetchRecipes()`: Recipes データソースからの取得
+   - `fetchMealLogs()`: Meal Logs データソースからの取得（直近14日分）
+
+2. **src/lib/notionMapper.ts**
+   - Notion APIレスポンスを内部モデルに変換
+   - `mapToRecipe()`: Recipes → NotionRecipe
+   - `mapToMealLog()`: Meal Logs → NotionMealLog
+   - バリデーション（必須プロパティのチェック）
+
+3. **src/lib/recipeScoring.ts**
+   - スコアリングロジック（直近抑制＋高評価優先）
+   - `scoreRecipe()`: 個別レシピのスコア計算
+   - `selectTopRecipes()`: 上位N件を選択、候補不足時は緩和
+   - 緩和ステップ: 14日 → 7日 → 0日（抑制なし）
+
+4. **src/lib/notionIntegration.ts**
+   - 高レベル統合API
+   - `loadNotionRecipes()`: Notion から scored recipes を取得
+   - `checkNotionAvailability()`: Notion設定の確認
+
+5. **src/lib/candidatePool.ts**（拡張）
+   - Notion優先、JSON フォールバック
+   - `loadCandidatePool()`: Notion → JSON → Cache → Fallback
+
+### 環境変数の設定
+
+アプリケーションでNotion連携を有効にするには、以下の環境変数を設定してください：
+
+**⚠️ セキュリティ警告**: 
+現在の実装では`VITE_NOTION_TOKEN`を使用しており、Notion APIトークンがブラウザのバンドルに露出します。これは以下の用途でのみ許容されます：
+- 開発/デモ目的
+- プライベートリポジトリでの個人利用
+- 概念実証（PoC）実装
+
+**本番環境で信頼できないユーザーに公開する場合は推奨されません。** 本番環境では、Notion API呼び出しをバックエンド/サーバーレス関数に移動してトークンをサーバー側で管理してください。
+
+**開発環境（.env.local）**:
+```bash
+VITE_NOTION_TOKEN=secret_xxx...
+VITE_NOTION_RECIPES_DATA_SOURCE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+VITE_NOTION_MEAL_LOGS_DATA_SOURCE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+**本番環境（GitHub Actions/Secrets）**:
+- GitHub リポジトリの Settings → Secrets and variables → Actions で設定
+- 上記3つの変数を Repository secrets として追加
+
+**注意**: 
+- トークンは必ず Secrets として保護すること
+- data_source_id は Secrets または Variables で管理可能
+- これらの環境変数が設定されていない場合、既存のJSON候補プールにフォールバックします
+
+### テストの実行
+
+M1実装で追加されたテスト：
+
+```bash
+# 全テスト（83テスト）
+npm test
+
+# Notionマッパーテスト（10テスト）
+npm run test:notion-mapper
+
+# レシピスコアリングテスト（11テスト）
+npm run test:recipe-scoring
+```
+
+すべてのテストが pass することを確認してください。
+
+### フォールバック動作
+
+Notion連携が失敗しても、アプリケーションは正常に動作します：
+
+1. **Notion設定なし**: JSON候補プール → Cache → Fallback recipes
+2. **Notion接続失敗**: JSON候補プール → Cache → Fallback recipes
+3. **Notionレシピ0件**: 警告表示 → JSON候補プールへフォールバック
+
+エラーは console に記録され、ユーザーには適切な警告メッセージが表示されます。
+
 ## 参考リンク
 
 - [Notion API Documentation](https://developers.notion.com/)
@@ -292,3 +380,4 @@ M1実装後、以下の手順で動作確認を行います：
 
 ## 変更履歴
 - 2025-12-29: 初版作成（M0 完了）
+- 2025-12-29: M1実装完了セクション追加

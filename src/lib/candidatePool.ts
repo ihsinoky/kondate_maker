@@ -1,7 +1,10 @@
 /**
  * Candidate Pool Loader Module
  * Handles fetching, caching, and managing recipe candidate pool
+ * Supports both JSON file and Notion integration as sources
  */
+
+import { loadNotionRecipes, isNotionConfigured } from './notionIntegration'
 
 const CACHE_KEY = 'kondate.candidatePool.v1'
 const CACHE_TIMESTAMP_KEY = 'kondate.candidatePool.timestamp.v1'
@@ -149,21 +152,54 @@ function saveCachedPool(recipes: CandidateRecipe[]): void {
 
 /**
  * Load candidate pool with caching strategy:
- * 1. Try to use cache
- * 2. If no cache or forceReload, fetch from network
- * 3. If fetch fails, use cache if available
+ * 1. If Notion is configured, try to load from Notion
+ * 2. If Notion fails or not configured, try JSON file
+ * 3. If JSON fetch fails, try cache
  * 4. If all fails, use fallback recipes
  * 
  * @param forceReload If true, always fetch from network
+ * @param preferNotion If true, prefer Notion over JSON (default true if Notion configured)
  * @returns Object with recipes and metadata
  */
-export async function loadCandidatePool(forceReload: boolean = false): Promise<{
+export async function loadCandidatePool(
+  forceReload: boolean = false,
+  preferNotion: boolean = true
+): Promise<{
   recipes: CandidateRecipe[]
   timestamp: string | null
-  source: 'network' | 'cache' | 'fallback'
+  source: 'network' | 'cache' | 'fallback' | 'notion'
   warning?: string
 }> {
-  // Try cache first (unless force reload)
+  // Try Notion first if configured and preferred
+  if (preferNotion) {
+    try {
+      // Check if Notion is configured
+      if (isNotionConfigured()) {
+        console.log('Attempting to load recipes from Notion...')
+        const notionResult = await loadNotionRecipes()
+        
+        if (notionResult.error) {
+          console.warn('Notion load failed:', notionResult.error)
+          // Fall through to JSON pool
+        } else if (notionResult.recipes.length > 0) {
+          console.log(`Successfully loaded ${notionResult.recipes.length} recipes from Notion`)
+          return {
+            recipes: notionResult.recipes,
+            timestamp: notionResult.timestamp,
+            source: 'notion',
+            warning: notionResult.warning
+          }
+        } else {
+          console.warn('Notion returned no recipes, falling back to JSON pool')
+        }
+      }
+    } catch (error) {
+      console.error('Error checking Notion configuration or loading:', error)
+      // Fall through to JSON pool
+    }
+  }
+
+  // Try cache first (unless force reload) for JSON pool
   if (!forceReload) {
     const cached = loadCachedPool()
     if (cached) {
@@ -175,7 +211,7 @@ export async function loadCandidatePool(forceReload: boolean = false): Promise<{
     }
   }
   
-  // Try to fetch from network
+  // Try to fetch from network (JSON file)
   try {
     const recipes = await fetchCandidatePool()
     const timestamp = new Date().toISOString()
