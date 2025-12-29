@@ -96,6 +96,26 @@ type NotionFilter = Record<string, unknown>
 type NotionSort = Record<string, unknown>
 
 /**
+ * Extended Notion client interface with data source API support
+ * The official SDK types don't include dataSources yet (as of v2.2.15)
+ */
+interface ExtendedNotionClient extends Client {
+  dataSources: {
+    query(params: {
+      data_source_id: string
+      start_cursor?: string
+      filter?: NotionFilter
+      sorts?: NotionSort[]
+      page_size?: number
+    }): Promise<{
+      results: unknown[]
+      has_more: boolean
+      next_cursor: string | null
+    }>
+  }
+}
+
+/**
  * Query Notion data source with pagination support
  * @param client Notion client
  * @param dataSourceId Data source ID to query
@@ -114,13 +134,11 @@ export async function queryDataSource(
   let startCursor: string | undefined = undefined
 
   try {
+    // Cast to extended client type that includes dataSources API
+    const extendedClient = client as unknown as ExtendedNotionClient
+    
     while (hasMore) {
-      // Use the data_sources.query endpoint
-      // Type assertion needed due to SDK's incomplete type definitions for data source API
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const clientAny = client as any
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await clientAny.dataSources.query({
+      const response = await extendedClient.dataSources.query({
         data_source_id: dataSourceId,
         start_cursor: startCursor,
         filter: filter,

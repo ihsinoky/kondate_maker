@@ -9,15 +9,6 @@ import { loadNotionRecipes, isNotionConfigured } from './notionIntegration'
 const CACHE_KEY = 'kondate.candidatePool.v1'
 const CACHE_TIMESTAMP_KEY = 'kondate.candidatePool.timestamp.v1'
 
-// Import isNotionConfigured for checking Notion availability
-function checkNotionConfigured(): boolean {
-  try {
-    return isNotionConfigured()
-  } catch {
-    return false
-  }
-}
-
 /**
  * Candidate recipe structure from candidate_pool.json
  */
@@ -180,27 +171,30 @@ export async function loadCandidatePool(
   warning?: string
 }> {
   // Try Notion first if configured and preferred
-  if (preferNotion && checkNotionConfigured()) {
-    console.log('Attempting to load recipes from Notion...')
+  if (preferNotion) {
     try {
-      const notionResult = await loadNotionRecipes()
-      
-      if (notionResult.error) {
-        console.warn('Notion load failed:', notionResult.error)
-        // Fall through to JSON pool
-      } else if (notionResult.recipes.length > 0) {
-        console.log(`Successfully loaded ${notionResult.recipes.length} recipes from Notion`)
-        return {
-          recipes: notionResult.recipes,
-          timestamp: notionResult.timestamp,
-          source: 'notion',
-          warning: notionResult.warning
+      // Check if Notion is configured
+      if (isNotionConfigured()) {
+        console.log('Attempting to load recipes from Notion...')
+        const notionResult = await loadNotionRecipes()
+        
+        if (notionResult.error) {
+          console.warn('Notion load failed:', notionResult.error)
+          // Fall through to JSON pool
+        } else if (notionResult.recipes.length > 0) {
+          console.log(`Successfully loaded ${notionResult.recipes.length} recipes from Notion`)
+          return {
+            recipes: notionResult.recipes,
+            timestamp: notionResult.timestamp,
+            source: 'notion',
+            warning: notionResult.warning
+          }
+        } else {
+          console.warn('Notion returned no recipes, falling back to JSON pool')
         }
-      } else {
-        console.warn('Notion returned no recipes, falling back to JSON pool')
       }
     } catch (error) {
-      console.error('Error loading from Notion:', error)
+      console.error('Error checking Notion configuration or loading:', error)
       // Fall through to JSON pool
     }
   }
